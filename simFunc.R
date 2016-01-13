@@ -74,8 +74,7 @@ sim <- function(initialLandscape, simDuration, fireCycle, fireSizeFit,
 
         timeSinceFire[[y]] <- tsf
 
-        t2 <- Sys.time()
-        print(paste0("year ", y, " (", nFires, " fires)", round(t2-t1, 2)))
+        print(paste0("year ", y, " (", nFires, " fires)"))
     }
     ## preparing outputs
     output <- list()
@@ -83,7 +82,7 @@ sim <- function(initialLandscape, simDuration, fireCycle, fireSizeFit,
         output[["fires"]] <- fires
     }
     if (outputTSF){
-        output[["tsf"]] <- timeSinceFire
+        output[["tsf"]] <- stack(timeSinceFire)
     }
     return(output)
 }
