@@ -8,7 +8,7 @@ sim <- function(initialLandscape, simDuration, fireCycle, fireSizeFit,
                 distribType = NULL, outputTSF = TRUE, outputFire = FALSE) {
 
     require(raster)
-    source("../fireSpreadFunc.R")
+    source("../scripts/fireSpreadFunc.R")
 
     scaleFactor <- prod(res(initialLandscape))/10000 # converting number of pixels to hectares
 
