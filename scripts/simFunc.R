@@ -5,21 +5,32 @@
 ####################################################################
 
 sim <- function(initialLandscape, simDuration, fireCycle, fireSizeFit,
-                distribType = NULL, outputTSF = TRUE, outputFire = FALSE) {
+                distribType = NULL, outputTSF = TRUE, outputFire = FALSE,
+                corr = 0) {
+
+
+    if(abs(corr)>0.9) stop("correlation must be between -0.9 and 0.9")
+
+   # coeff <- timeXfireCorr * 2
 
     require(raster)
     source("../scripts/fireSpreadFunc.R")
 
-    scaleFactor <- prod(res(initialLandscape))/10000 # converting number of pixels to hectares
+    #### converting number of pixels to hectares
+    scaleFactor <- prod(res(initialLandscape))/10000
 
     ##############################################################
     ##############################################################
-    ##### fire regime
+    ####  fire regime
+    require(MASS)
     ##############################################################
     ##############################################################
-    # average fraction of the "burnable" area burned annually
+
+    ### average fraction of the "burnable" area burned annually
     fAAB <- 1 / fireCycle
-    # fire size distrib
+
+    ########
+    ### fire size distrib
     estimates <- names(fireSizeFit$estimate)
     if (estimates == "rate") {
         distribType <- "exp"
@@ -27,11 +38,37 @@ sim <- function(initialLandscape, simDuration, fireCycle, fireSizeFit,
     }
     if (estimates[1] == "meanlog" & estimates[2] == "sdlog") {
         distribType <- "lognorm"
-        fireSizeMean <- exp(fireSizeFit$estimate["meanlog"] + 0.5*fireSizeFit$estimate["sdlog"]^2)
+        fireSizeMean <- exp(fireSizeFit$estimate["meanlog"] +
+                                0.5*fireSizeFit$estimate["sdlog"]^2)
     }
-    # fire sequence (annually)
+
+    ########
+    ### fire sequence (annually)
     nFiresMean <- fAAB * sum(values(initialLandscape>0), na.rm = T) * scaleFactor / fireSizeMean
-    nFireSequence <- rpois(lambda = nFiresMean, n = 1:simDuration)
+
+    nFireSequence <- rpois(lambda = nFiresMean, n =simDuration)
+
+    # ordering sequence, then permutating until desired correlation is achieved
+    if (!(corr == 0)) {
+
+        repeat {
+            nFireSequence <- nFireSequence[order(nFireSequence,
+                                                 decreasing = ifelse(corr > 0, F, T))]
+
+            corrTmp <- cor(nFireSequence, 1:simDuration)
+
+            iter <- 1
+            while(abs(corrTmp - corr)>0.01) {
+                x <- sample(1:simDuration, 2)
+                nFireSequence[x] <- nFireSequence[rev(x)]
+                #nFireSequence[i[2]] <- nFireSequence[i[1]]
+                corrTmp <- cor(nFireSequence, 1:simDuration)
+                iter <- iter+1
+                if (iter > 1000) break
+            }
+            if  (abs(corrTmp - corr)<0.01) break
+        }
+    }
 
     ##############################################################
     ##############################################################
@@ -41,16 +78,16 @@ sim <- function(initialLandscape, simDuration, fireCycle, fireSizeFit,
     fires <- list()
     for (y in seq_along(nFireSequence)) {
 
-        ### aging landscape
+        #### aging landscape
         if (y == 1) {
             tsf <- initialLandscape
             timeSinceFire <- list()
         } else {
             tsf <- tsf + 1
         }
-        ### burning
+        #### burning
         nFires <- nFireSequence[y]
-        ### skip if no fire events
+        #### skip if no fire events
         if (nFires > 0) {
             eligible <- tsf > 0
 
