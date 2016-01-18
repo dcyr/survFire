@@ -49,18 +49,21 @@ fireSizeFit <- fitdistr(fireSizeObs, "lognormal")
 source("../scripts/simFunc.R")
 ####################################################################
 ####################################################################
-nRep <- 10
+nRep <- 1
 require(doSNOW)
-clusterN <- 3  ### choose number of nodes to add to cluster.
+clusterN <- 1  ### choose number of nodes to add to cluster.
 
 cl = makeCluster(clusterN)
 registerDoSNOW(cl)
 
 for (fc in c(1000, 500, 250, 125, 75)) {
-    for (corr in c(-.3, 0, .3)) {
-        ## create landscape at equilibrium according to simulated fire cycle
+    for (corr in c(0)) {
+        #### initial landscape with tsf == 0
+        # initialLandscape[] <- 0
+        #### or initial landscape at equilibrium according to simulated fire cycle
         initialLandscape[] <- round(rexp(ncell(initialLandscape), rate = 1/fc))
         initialLandscape[initialLandscape == 0] <- fc # removing zeros, remplace by fc
+
         ##
         output <- foreach(i = 1:nRep) %dopar%  {
             output <- sim(initialLandscape, simDuration = 300,

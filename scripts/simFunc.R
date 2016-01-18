@@ -44,7 +44,7 @@ sim <- function(initialLandscape, simDuration, fireCycle, fireSizeFit,
 
     ########
     ### fire sequence (annually)
-    nFiresMean <- fAAB * sum(values(initialLandscape>0), na.rm = T) * scaleFactor / fireSizeMean
+    nFiresMean <- fAAB * sum(is.na(values(initialLandscape))==FALSE) * scaleFactor / fireSizeMean
 
     nFireSequence <- rpois(lambda = nFiresMean, n =simDuration)
 
@@ -90,7 +90,6 @@ sim <- function(initialLandscape, simDuration, fireCycle, fireSizeFit,
         #### skip if no fire events
         if (nFires > 0) {
             eligible <- tsf > 0
-
             ## burning
             if (distribType == "exp") {
                 fSize <- round(rexp(nFires, rate = fireSizeFit$estimate))
@@ -99,16 +98,17 @@ sim <- function(initialLandscape, simDuration, fireCycle, fireSizeFit,
                 fSize <- round(rlnorm(nFires, meanlog = fireSizeFit$estimate[1],
                                 sdlog = fireSizeFit$estimate[2]))
             }
-
-            f <- stack(fireSpread(eligible = eligible, fireSize = fSize))
-            if (nlayers(f) == 1) {
-                tsf[f > 0] <- 0
-            } else {
-                tsf[calc(f, sum, na.rm = T) > 0] <- 0
+            if (sum(values(eligible>0)) > 0) { ## skip if there's nothing eligible to burn
+                f <- stack(fireSpread(eligible = eligible, fireSize = fSize))
+                if (nlayers(f) == 1) {
+                    tsf[f > 0] <- 0
+                } else {
+                    tsf[calc(f, sum, na.rm = T) > 0] <- 0
+                }
+                fires[[y]] <- f
             }
-            fires[[y]] <- f
-        }
 
+        }
         timeSinceFire[[y]] <- tsf
 
         print(paste0("year ", y, " (", nFires, " fires)"))

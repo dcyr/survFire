@@ -2,13 +2,13 @@
 ######## fire cycle estimation survival function
 #######################################
 
-expFitFn <- function(x) {        ### negative exponential fitting
+expFitFnc <- function(x) {        ### negative exponential fitting
     surv.exp <- survreg(x ~ 1, dist="exponential")
     b <- exp(surv.exp$coefficients)
     list(cycle=b, freq=1/b)
 }
 
-weibFitFn <- function(x) {        ### weibull exponential fitting
+weibFitFnc <- function(x) {        ### weibull exponential fitting
     surv.weib <- survreg(x ~ 1, dist="weibull")
     b <- exp(surv.weib$coefficients)
     c <- 1/(surv.weib$scale)
@@ -16,7 +16,7 @@ weibFitFn <- function(x) {        ### weibull exponential fitting
     list(cycle=fc, freq=1/fc)
 }
 
-coxFitFn <- function(x) {
+coxFitFnc <- function(x) {
     cox_reg <- coxph(x ~ 1)
     base.cox <- basehaz(cox_reg)
     ##fc <- max(base.cox[,2])/max(base.cox[,1])

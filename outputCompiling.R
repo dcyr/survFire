@@ -14,6 +14,15 @@ rm(wwd)
 ####################################################################
 ####################################################################
 ######
+######      Compiling 2000-yrs simulations outputs
+######
+######
+outputFolder2000 <- paste(outputFolder, "2000YrsSims", sep="/")
+
+
+####################################################################
+####################################################################
+######
 ######      compiling simulation outputs
 ######      +
 ######      simulated sampling
@@ -26,8 +35,9 @@ rm(wwd)
 
 ####################################################################
 ####################################################################
-
+outputFolder <- outputFolder2000
 x <- list.files(outputFolder)
+simInfo <- simInfo[grep(".RData", x)]
 simInfo <- gsub(".RData", "", x)
 simInfo <- strsplit(simInfo, "_")
 fc <- as.numeric(lapply(simInfo, function(x) x[2]))
@@ -90,7 +100,7 @@ output <- do.call("rbind", outputList)
 save(output, file = "simOutputCompiled.RData")
 
 
-## simulated sampling
+## tsf Final
 ###########################################
 cl = makeCluster(clusterN)
 registerDoSNOW(cl)
