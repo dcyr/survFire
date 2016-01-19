@@ -13,9 +13,9 @@ setwd(wwd)
 rm(wwd)
 
 ### fetching total area
-refRaster <- get(load("../outputs/simOutput_75_0.RData"))
-refRaster <- refRaster[[1]]$tsf[[1]]
-totalArea <- ncell(refRaster) * prod(res(refRaster))/10000
+# refRaster <- get(load("../outputs/simOutput_75_0.RData"))
+# refRaster <- refRaster[[1]]$tsf[[1]]
+totalArea <- 1000000
 ###
 rm(refRaster)
 
@@ -33,49 +33,66 @@ require(zoo) ### for 'rollmean'
 output <- get(load(paste(outputFolder, "simOutputCompiled2000.RData", sep="/")))
 
 output <- output %>%
+    filter(replicate == 1) %>%
     mutate(id = paste0(fireCycle, replicate, treatment))
 output$treatment <- as.factor(output$treatment)
 
-uniqueSimID <- unique(output$id)
-output$simID <- match(output$id, sample(uniqueSimID))
-
-head(output)
-constantFC <- output %>%
+output <- output %>%
     arrange(year, fireCycle)
 
-for (fc in unique(constantFC$fireCycle)) {
-    trueTSF <- constantFC %>%
+trueTSFNames <- c("trueTSF50", "trueTSF150", "trueTSF300")
+output[, trueTSFNames] <- NA
+
+trueTSF <- list()
+for (fc in unique(output$fireCycle)) {
+    trueTSF[[fc]] <- output %>%
         filter(fireCycle == fc)
-    aab <- aab$areaBurned_ha
+    year <- trueTSF[[fc]]$year
+    aab <- trueTSF[[fc]]$areaBurned_ha
 
 
-    trueTSF <- matrix(NA, ncol = 3, nrow = length(aab))
-    trueTSF[,1] <- totalArea/rollmean(aab, 50, align = "right", fill = NA)
-    trueTSF[,2] <- totalArea/rollmean(aab, 150, align = "right", fill = NA)
-    trueTSF[,3] <- totalArea/rollmean(aab, 300, align = "right", fill = NA)
-    trueTSFNames <- c("trueTSF50", "trueTSF150", "trueTSF300")
-    colnames(trueTSF) <- trueTSFNames
+    trueTSF[[fc]][,"trueTSF50"] <- totalArea/rollmean(aab, 50, align = "right", fill = NA)
+    trueTSF[[fc]][,"trueTSF150"] <- totalArea/rollmean(aab, 150, align = "right", fill = NA)
+    trueTSF[[fc]][,"trueTSF300"] <- totalArea/rollmean(aab, 300, align = "right", fill = NA)
 
 
-    constantFC[match(year, constantFC$year),] <-trueTSF
 }
-head(constantFC)
+
+trueTSF <- do.call("rbind", trueTSF)
+
+head(trueTSF)
+
+require(reshape2)
+trueTSF <- melt(trueTSF, id.vars = c("fireCycle", "treatment", "replicate", "id", "year", "areaBurned_ha"),
+     meas.vars = c("meanTSF", "trueTSF50", "trueTSF150", "trueTSF300"))
+summary(trueTSF)
 
 
-
-
-trueTSF <- ggplot(constantFC, aes(x=year, y=meanTSF,
-                                  group=id, color = treatment)) +
-    #scale_colour_manual(values = colTreatment) +
+colors <- c("black", "darkred", "darkblue", "darkgreen")
+trueTSFPlot <- ggplot(trueTSF, aes(x=year, y=value,
+                                  group=id, color = variable)) +
+    scale_colour_manual(values = colors) +
     #stat_summary(fun.data = "median_hilow", geom = "smooth", size=5) +
     geom_line(aes(group=id),
               size=1,
               type=1,
-              alpha=0.5) +
+              alpha=1) +
     facet_wrap( ~ fireCycle, ncol = 1,
                 scales = "free")
 
-trueTSF
+
+png(filename = "simTrueTSF.png", width = 800, height = 1024, units = "px",
+    pointsize = 32)
+
+    print(trueTSFPlot)
+dev.off()
+
+
+ trueTSF %>%
+     group_by(fireCycle, variable) %>%
+     summarise(meanTSF = mean(value, na.rm =T),
+               simCycle = 1000000/mean(areaBurned_ha))
+
 
 ####################################################################
 ####################################################################

@@ -30,7 +30,8 @@ fireSpread <- function(eligible, w = NULL,
         #
         fSize <- 1*scaleFactor
 
-        while(fSize < fireSize[i]) {
+        while(fSize < fs) {
+            remaining <- (fs - fSize)/scaleFactor
             ### looking up neighbours
             # all cells adjacent to a burned cell
             fireNeighbour <- focal(fireFront, w = w, pad = T, padValue = 0) > 0
@@ -41,7 +42,12 @@ fireSpread <- function(eligible, w = NULL,
             indices <- setdiff(indices, which(values(eligible) == 0))
             ### fire spread
             # burning only a proportion of neighbours
-            indices <- indices[which(runif(length(indices)) < probSpread)]
+            rVec <- runif(length(indices))
+            indices <- indices[union(which.min(rVec), which(rVec < probSpread))] ## burn at least one pixel until target fire size is achieved
+            # trim so that final fire size does not exceed target fire size
+            if (length(indices) > remaining) {
+                indices <- sample(indices, size = remaining)
+            }
 
 
             if (length(indices) == 0) break  ### fire stops burning

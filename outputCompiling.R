@@ -44,7 +44,7 @@ fc <- as.numeric(lapply(simInfo, function(x) x[2]))
 corr <- as.numeric(lapply(simInfo, function(x) x[3]))
 
 require(doSNOW)
-clusterN <- 2  ### choose number of nodes to add to cluster.
+clusterN <- 1  ### choose number of nodes to add to cluster.
 
 cl = makeCluster(clusterN)
 registerDoSNOW(cl)
