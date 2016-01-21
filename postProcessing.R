@@ -13,11 +13,11 @@ setwd(wwd)
 rm(wwd)
 
 ### fetching total area
-# refRaster <- get(load("../outputs/simOutput_75_0.RData"))
-# refRaster <- refRaster[[1]]$tsf[[1]]
+#  refRaster <- get(load("../outputs/simOutput_125_0.RData"))
+#  refRaster <- refRaster[[1]]$tsf[[1]]
 totalArea <- 1000000
 ###
-rm(refRaster)
+
 
 
 ####################################################################
@@ -40,58 +40,104 @@ output$treatment <- as.factor(output$treatment)
 output <- output %>%
     arrange(year, fireCycle)
 
-trueTSFNames <- c("trueTSF50", "trueTSF150", "trueTSF300")
-output[, trueTSFNames] <- NA
+trueFCNames <- c("trueFC50", "trueFC150", "trueFC300")
+output[, trueFCNames] <- NA
 
-trueTSF <- list()
+trueFC <- list()
 for (fc in unique(output$fireCycle)) {
-    trueTSF[[fc]] <- output %>%
+    trueFC[[fc]] <- output %>%
         filter(fireCycle == fc)
-    year <- trueTSF[[fc]]$year
-    aab <- trueTSF[[fc]]$areaBurned_ha
+    year <- trueFC[[fc]]$year
+    aab <- trueFC[[fc]]$areaBurned_ha
 
 
-    trueTSF[[fc]][,"trueTSF50"] <- totalArea/rollmean(aab, 50, align = "right", fill = NA)
-    trueTSF[[fc]][,"trueTSF150"] <- totalArea/rollmean(aab, 150, align = "right", fill = NA)
-    trueTSF[[fc]][,"trueTSF300"] <- totalArea/rollmean(aab, 300, align = "right", fill = NA)
+    trueFC[[fc]][,"trueFC50"] <- totalArea/rollmean(aab, 50, align = "right", fill = NA)
+    trueFC[[fc]][,"trueFC150"] <- totalArea/rollmean(aab, 150, align = "right", fill = NA)
+    trueFC[[fc]][,"trueFC300"] <- totalArea/rollmean(aab, 300, align = "right", fill = NA)
 
 
 }
 
-trueTSF <- do.call("rbind", trueTSF)
-
-head(trueTSF)
-
-require(reshape2)
-trueTSF <- melt(trueTSF, id.vars = c("fireCycle", "treatment", "replicate", "id", "year", "areaBurned_ha"),
-     meas.vars = c("meanTSF", "trueTSF50", "trueTSF150", "trueTSF300"))
-summary(trueTSF)
-
-
-colors <- c("black", "darkred", "darkblue", "darkgreen")
-trueTSFPlot <- ggplot(trueTSF, aes(x=year, y=value,
-                                  group=id, color = variable)) +
-    scale_colour_manual(values = colors) +
-    #stat_summary(fun.data = "median_hilow", geom = "smooth", size=5) +
-    geom_line(aes(group=id),
-              size=1,
-              type=1,
-              alpha=1) +
-    facet_wrap( ~ fireCycle, ncol = 1,
-                scales = "free")
+## unlisting
+#trueFC <- do.call("rbind", trueFC)
+## 'melting' dataframe
+# require(reshape2)
+# trueFC <- melt(trueFC, id.vars = c("fireCycle", "treatment", "replicate", "id", "year", "areaBurned_ha"),
+#      meas.vars = c("meanTSF", "trueTSF50", "trueTSF150", "trueTSF300"))
+#
+# head(trueFC)
+#
+# unique(trueFC$id)
+# ## recreating unique IDs
+# trueFC <- trueFC %>%
+#     mutate(id = as.factor(as.numeric(as.factor(paste(id, variable)))))
+# summary(trueFC)
+#
+# ###### Plotting examples
+# colors <- c("black", "darkred", "darkblue", "darkgreen")
 
 
-png(filename = "simTrueTSF.png", width = 800, height = 1024, units = "px",
-    pointsize = 32)
+#####################
+#####################
 
-    print(trueTSFPlot)
-dev.off()
+############################################
+##### graphiques - statistiques "r?elles"
+############################################
+
+yLimAAB <- c(0, max(as.numeric(lapply(trueFC, function(x) max(x$areaBurned_ha)))))
+
+for (fc in c(62.5, 125, 250, 500, 1000)) {
+    df <- trueFC[[fc]]
+    x <- df$year
+    meanTSF <- df$meanTSF
+    FC50 <- df$trueFC50
+    FC150 <- df$trueFC150
+    FC300 <- df$trueFC300
+    aab <- df$areaBurned_ha
+    #
+    realizedFC <- totalArea/mean(aab)
 
 
- trueTSF %>%
-     group_by(fireCycle, variable) %>%
-     summarise(meanTSF = mean(value, na.rm =T),
-               simCycle = 1000000/mean(areaBurned_ha))
+    png(filename = paste0("simTrueTSF", fc, ".png"),
+        #width = 1800, height = (160*length(unique(df$species))+200), units = "px",
+        width = 8, height = 5, units = "in", res = 300, pointsize = 8,
+        bg = "white")
+
+        #########
+        par(mfrow=c(2,1), mar=c(0,4,3,1))
+        options(scipen=7) ###force fixed notation (no scientific notation unless > 10E7 )
+        #
+        plot(x = x, y = aab, type="l", ylab="Annual area burned (ha)", xaxt="n", lwd=0.5, xlim=c(0,2000), ylim=yLimAAB)
+        abline(v = seq(from=0, to=2000, by= 100), col = "gray", lty=3, lwd=.5)
+        grid(col="gray", lty=3, lwd=.8)
+        #
+        text(max(x), y = yLimAAB[2]*.98, paste("Realized fire cycle (entire simulation) :", round(realizedFC, 1), "years"), adj = c(1,1), cex=1)
+        text(max(x), y = yLimAAB[2]*.92, paste("Mean percent annual area burned :", round(100*1/realizedFC, 2), "%"), adj = c(1,1), cex=1)
+        ###
+        par(mar=c(5,4,0,1))
+        ylim <- c(0,(realizedFC*3.5))
+        #ylimits <- c(0, 300)
+        plot(meanTSF, type="l", lwd=2, lty=1, col="black", ylab="Mean time since fire / True fire cycle", xlab="Simulated years", ylim=ylim)
+        abline(v = seq(from=0, to=2000, by= 100), col = "gray", lty=3, lwd=.5)
+        grid(col="gray", lty=3, lwd=.8)
+        abline(h=realizedFC, lty=1, lwd=1, col="black")
+        lines(FC50, lty=1, lwd=1, col="red")
+        lines(FC150, lty=1, lwd=1, col="blue")
+        lines(FC300, lty=1, lwd=1, col="darkgreen")
+        legend(0, ylim[2],
+               c("True mean TSF", "True FC (past 50 years)", "True FC (past 150 years)", "True FC (past 300 years)"),
+               lty = 1, lwd = c(2,1,1,1), col = c("black", "red", "blue", "darkgreen"),
+               cex=1,
+               bg="white")
+
+    dev.off()
+}
+
+
+#####################
+#####################
+#####################
+
 
 
 ####################################################################

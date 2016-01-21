@@ -18,7 +18,7 @@ rm(wwd)
 library(raster)
 ####################################################################
 ####################################################################
-initialLandscape <- raster(extent(0, 120000, 0, 120000), res=1000)
+initialLandscape <- raster(extent(0, 145000, 0, 145000), res=1000)
 initialLandscape[] <- NA
 
 ## convertion from pixel to hectares
@@ -48,23 +48,23 @@ fireSizeFit <- fitdistr(fireSizeObs, "lognormal")
 source("../scripts/simFunc.R")
 ####################################################################
 ####################################################################
-nRep <- 1
+nRep <- 25
 require(doSNOW)
-clusterN <- 1  ### choose number of nodes to add to cluster.
+clusterN <- 3  ### choose number of nodes to add to cluster.
 #######
 cl = makeCluster(clusterN)
 registerDoSNOW(cl)
 for (fc in c(62.5, 125, 250, 500, 1000)) {
-    for (corr in c(0)) {
+    for (corr in c(-0.5, 0, 0.5)) {
         #### initial landscape with tsf == 0
-        initialLandscape[] <- 1
+        #initialLandscape[] <- 1
         #### or initial landscape at equilibrium according to simulated fire cycle
-        #initialLandscape[] <- round(rexp(ncell(initialLandscape), rate = 1/fc))
-        #initialLandscape[initialLandscape == 1] <- fc # removing zeros, remplace by fc
+        initialLandscape[] <- round(rexp(ncell(initialLandscape), rate = 1/fc))
+        initialLandscape[initialLandscape == 1] <- fc # removing zeros, remplace by fc
 
         ##
         output <- foreach(i = 1:nRep) %dopar%  {
-            output <- sim(initialLandscape, simDuration = 2000,
+            output <- sim(initialLandscape, simDuration = 300,
                           fireCycle = fc, fireSizeFit = fireSizeFit, corr = corr)
             return(output)
         }
