@@ -74,40 +74,40 @@ outputCompiled <- do.call("rbind", outputList)
 save(outputCompiled, file = "simOutputCompiled.RData")
 
 
-# tsfFinalList <- list()
-# require(raster)
-# for (i in seq_along(x)) {#
-#     ##
-#     output <- get(load(paste(outputFolder, x[i], sep="/")))
-#     fireCycle <- replicate <- treatment <- tsfFinal <- list()
-#     ##
-#     for (r in seq_along(output)) {
-#
-#         tsfFinalRaster <- output[[r]][["tsf"]]
-#         tsfFinalRaster <- tsfFinalRaster[[nlayers(tsfFinalRaster)]]
-#         convFactor <- prod(res(tsfFinalRaster))/10000### to convert to hectares
-#         ## removing edge (10km)
-#         e <- extent(tsfFinalRaster, 11, nrow(tsfFinalRaster)-10, 11, ncol(tsfFinalRaster)-10)
-#         tsfFinalRaster <- crop(tsfFinalRaster, e)
-#         nCells <- ncell(tsfFinalRaster)
-#         ## compiling 'true' FC statistics
-#         replicate[[r]] <- rep(r, nCells)
-#         fireCycle[[r]] <- rep(fc[i], nCells)
-#         treatment[[r]] <- rep(corr[i], nCells)
-#         ## recording final TSF for downstream analyses
-#         tsfFinal[[r]] <- values(tsfFinalRaster)
-#     }
-#     ##
-#     fireCycle <- as.numeric(do.call("cbind", fireCycle))
-#     treatment <- as.numeric(do.call("cbind", treatment))
-#     replicate <- as.numeric(do.call("cbind", replicate))
-#     tsfFinal <- as.numeric(do.call("cbind", tsfFinal))
-#     ##
-#     tsfFinalList[[i]] <- data.frame(fireCycle, treatment, replicate, tsfFinal)
-#     print(i)
-#     rm(output)
-# }
-# ##
-# tsfFinal <-  do.call("rbind", tsfFinalList)
-# save(tsfFinal, file = "tsfFinal.RData")
+tsfFinalList <- list()
+require(raster)
+for (i in seq_along(x)) {#
+    ##
+    output <- get(load(paste(outputFolder, x[i], sep="/")))
+    fireCycle <- replicate <- treatment <- tsfFinal <- list()
+    ##
+    for (r in seq_along(output)) {
+
+        tsfFinalRaster <- output[[r]][["tsf"]]
+        tsfFinalRaster <- tsfFinalRaster[[nlayers(tsfFinalRaster)]]
+        convFactor <- prod(res(tsfFinalRaster))/10000### to convert to hectares
+        ## removing edge (10km)
+        e <- extent(tsfFinalRaster, 11, nrow(tsfFinalRaster)-10, 11, ncol(tsfFinalRaster)-10)
+        tsfFinalRaster <- crop(tsfFinalRaster, e)
+        nCells <- ncell(tsfFinalRaster)
+        ## compiling 'true' FC statistics
+        replicate[[r]] <- rep(r, nCells)
+        fireCycle[[r]] <- rep(fc[i], nCells)
+        treatment[[r]] <- rep(corr[i], nCells)
+        ## recording final TSF for downstream analyses
+        tsfFinal[[r]] <- values(tsfFinalRaster)
+    }
+    ##
+    fireCycle <- as.numeric(do.call("cbind", fireCycle))
+    treatment <- as.numeric(do.call("cbind", treatment))
+    replicate <- as.numeric(do.call("cbind", replicate))
+    tsfFinal <- as.numeric(do.call("cbind", tsfFinal))
+    ##
+    tsfFinalList[[i]] <- data.frame(fireCycle, treatment, replicate, tsfFinal)
+    print(i)
+    rm(output)
+}
+##
+tsfFinal <-  do.call("rbind", tsfFinalList)
+save(tsfFinal, file = "tsfFinal.RData")
 
