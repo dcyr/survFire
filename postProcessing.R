@@ -13,9 +13,13 @@ setwd(wwd)
 rm(wwd)
 
 ### fetching total area
-#  refRaster <- get(load("../outputs/simOutput_125_0.RData"))
-#  refRaster <- refRaster[[1]]$tsf[[1]]
-totalArea <- 1000000
+refRaster <- get(load("../outputs/simOutput_125_0.RData"))
+refRaster <- refRaster[[1]]$tsf[[1]]
+### removing 10-km edge (should check if that's coherent with upstream output compiling)
+e <- extent(refRaster, 11, nrow(refRaster)-10, 11, ncol(refRaster)-10)
+refRaster <- crop(refRaster, e)
+totalArea <- ncell(refRaster)
+totalArea <- ncell(refRaster) * prod(res(refRaster))/10000 ### total area in hectare
 ###
 
 
@@ -26,11 +30,11 @@ totalArea <- 1000000
 ######      2000-yrs constant fc simulations
 ######
 require(dplyr)
-require(ggplot2)
 require(zoo) ### for 'rollmean'
 ####################################################################
 ####################################################################
 output <- get(load(paste(outputFolder, "simOutputCompiled2000.RData", sep="/")))
+
 
 output <- output %>%
     filter(replicate == 1) %>%
@@ -58,30 +62,12 @@ for (fc in unique(output$fireCycle)) {
 
 }
 
-## unlisting
-#trueFC <- do.call("rbind", trueFC)
-## 'melting' dataframe
-# require(reshape2)
-# trueFC <- melt(trueFC, id.vars = c("fireCycle", "treatment", "replicate", "id", "year", "areaBurned_ha"),
-#      meas.vars = c("meanTSF", "trueTSF50", "trueTSF150", "trueTSF300"))
-#
-# head(trueFC)
-#
-# unique(trueFC$id)
-# ## recreating unique IDs
-# trueFC <- trueFC %>%
-#     mutate(id = as.factor(as.numeric(as.factor(paste(id, variable)))))
-# summary(trueFC)
-#
-# ###### Plotting examples
-# colors <- c("black", "darkred", "darkblue", "darkgreen")
-
 
 #####################
 #####################
 
 ############################################
-##### graphiques - statistiques "r?elles"
+##### plotting 2000-yrs simulation examples
 ############################################
 
 yLimAAB <- c(0, max(as.numeric(lapply(trueFC, function(x) max(x$areaBurned_ha)))))
@@ -117,16 +103,16 @@ for (fc in c(62.5, 125, 250, 500, 1000)) {
         par(mar=c(5,4,0,1))
         ylim <- c(0,(realizedFC*3.5))
         #ylimits <- c(0, 300)
-        plot(meanTSF, type="l", lwd=2, lty=1, col="black", ylab="Mean time since fire / True fire cycle", xlab="Simulated years", ylim=ylim)
+        plot(meanTSF, type="l", lwd=4, lty=1, col="black", ylab="Mean time since fire / True fire cycle", xlab="Simulated years", ylim=ylim)
         abline(v = seq(from=0, to=2000, by= 100), col = "gray", lty=3, lwd=.5)
         grid(col="gray", lty=3, lwd=.8)
         abline(h=realizedFC, lty=1, lwd=1, col="black")
-        lines(FC50, lty=1, lwd=1, col="red")
-        lines(FC150, lty=1, lwd=1, col="blue")
-        lines(FC300, lty=1, lwd=1, col="darkgreen")
+        lines(FC50, lty=1, lwd=2, col="red3")
+        lines(FC150, lty=1, lwd=2, col="dodgerblue2")
+        lines(FC300, lty=1, lwd=2, col="darkolivegreen")
         legend(0, ylim[2],
                c("True mean TSF", "True FC (past 50 years)", "True FC (past 150 years)", "True FC (past 300 years)"),
-               lty = 1, lwd = c(2,1,1,1), col = c("black", "red", "blue", "darkgreen"),
+               lty = 1, lwd = c(4,2,2,2), col = c("black", "red3", "dodgerblue2", "darkolivegreen"),
                cex=1,
                bg="white")
 
@@ -143,117 +129,125 @@ for (fc in c(62.5, 125, 250, 500, 1000)) {
 ####################################################################
 ####################################################################
 ######
-######      sampling landscape
+######      300-yrs simulations with replicates
 ######
-source("../scripts/censFnc.R")
-source("../scripts/fcEstSurvFnc.R")
 require(dplyr)
-require(ggplot2)
-colTreatment <- c("dodgerblue2", "black", "red3")
+require(zoo) ### for 'rollmean'
 ####################################################################
 ####################################################################
 
-### a little tidying up
-tsfFinal <- get(load(paste(outputFolder, "tsfFinal.RData", sep="/")))
-rm(tsfFinalList)
+####################
+#####  True fire cycle
+
 output <- get(load(paste(outputFolder, "simOutputCompiled.RData", sep="/")))
 
-require(dplyr)
 output <- output %>%
     mutate(id = paste0(fireCycle, replicate, treatment))
 output$treatment <- as.factor(output$treatment)
 
-df0 <- output %>% distinct(fireCycle, treatment, replicate) %>%
-    mutate(meanTSF = fireCycle,
-           areaBurned_ha = NA,
-           year = 0)
+output <- output %>%
+    arrange(year, replicate, treatment, fireCycle)
 
-output <-  rbind(output, df0)
+trueFCNames <- c("trueFC50", "trueFC150", "trueFC300")
+output[, trueFCNames] <- NA
+
+trueFC <- list()
+for (fc in unique(output$fireCycle)) {
+    trueFC[[fc]] <- list()
+    for (treat in unique(output$treatment)) {
+        trueFC[[fc]][[treat]] <- list()
+        for (r in unique(output$replicate)) {
+            trueFC[[fc]][[treat]][[r]] <- output %>%
+                filter(fireCycle == fc,
+                       treatment == treat,
+                       replicate == r)
+            year <- trueFC[[fc]][[treat]][[r]]$year
+            aab <-trueFC[[fc]][[treat]][[r]]$areaBurned_ha
 
 
+            trueFC[[fc]][[treat]][[r]][,"trueFC50"] <- totalArea/rollmean(aab, 50, align = "right", fill = NA)
+            trueFC[[fc]][[treat]][[r]][,"trueFC150"] <- totalArea/rollmean(aab, 150, align = "right", fill = NA)
+            trueFC[[fc]][[treat]][[r]][,"trueFC300"] <- totalArea/rollmean(aab, 300, align = "right", fill = NA)
+        }
+    }
 
-head(output)
-uniqueSimID <- unique(output$id)
-output$simID <- match(output$id, sample(uniqueSimID))
-
-
-
-####################################################################
-####################################################################
-######
-######      simulation example (one replicate)
-######
-require(zoo) ## for rollmean
-####################################################################
-####################################################################
-
-constantFC <- output %>%
-    # select only constant fire cycle, one replicate,
-    filter(replicate == 1,
-           treatment == "0") %>%
-    arrange(year, fireCycle)
-
-for (fc in unique(constantFC$fireCycle)) {
-   aab <- constantFC %>%
-       filter(fireCycle == fc)
-   aab <- aab$areaBurned_ha
-
-    trueFC <- rollmean()
 }
+## unlisting everything
+tmp <- list()
+for (fc in unique(output$fireCycle)) {
+    tmp2 <- list()
+    for (treat in unique(output$treatment)) {
+        tmp2[[treat]] <- do.call("rbind", trueFC[[fc]][[treat]])
+    }
+    tmp[[fc]] <- do.call("rbind", tmp2)
+}
+trueFC <-  do.call("rbind", tmp)
+
+trueFC <- merge(trueFC, trueFC %>%
+                    group_by(fireCycle, treatment, replicate) %>%
+                    summarise(meanAAB = mean(areaBurned_ha)))
+
+# keep only complete cases (year == 300)
+trueFC <- trueFC[complete.cases(trueFC),]
+# house cleaning
+rownames(trueFC) <-  1:nrow(trueFC)
+trueFC <- trueFC[,-which(colnames(trueFC) %in% c("id", "areaBurned_ha"))]
+trueFC <- trueFC %>%
+    arrange(fireCycle, treatment, replicate)
 
 
+# ############################################
+# ##### plotting 300-yrs simulations results
+# require(ggplot2)
+# ############################################
+# geom_histogram()
+
+### illustrate the following graphically (with histograms?)
+trueFC %>%
+    group_by(fireCycle, treatment) %>%
+    summarise(meanTSF = mean(meanTSF),
+              mean50 = mean(trueFC50),
+              mean150 = mean(trueFC150),
+              mean300 = mean(trueFC300))
 
 
-head(constantFC)
+############################################
+##### simulating field sampling and FC estimation
+require(dplyr)
+require(ggplot2)
+require(survival)
+source("../scripts/censFnc.R")
+source("../scripts/fcEstSurvFnc.R")
+############################################
+tsfFinal <- get(load(paste(outputFolder, "tsfFinal.RData", sep="/")))
+samplingEffort <- 100
+nTrials <- 1000
 
 
-meanTSF <- ggplot(constantFC, aes(x=year, y=meanTSF,
-                              group=id, color = treatment)) +
-    #scale_colour_manual(values = colTreatment) +
-    #stat_summary(fun.data = "median_hilow", geom = "smooth", size=5) +
-    geom_line(aes(group=id),
-              size=1,
-              type=1,
-              alpha=0.5) +
-    facet_wrap( ~ fireCycle, ncol = 1,
-               scales = "free")
+for (fc in unique(tsfFinal$fireCycle)){
+    trueTSF <- tsfFinal %>%
+        filter(fireCycle == fc)
+    for (treat in unique(tsfFinal$treatment)) {
+        trueTSF <- trueTSF %>%
+            filter(treatment == treat)
+        for (r in unique(tsfFinal$replicate)) {
+            trueTSF <- trueTSF %>%
+                filter(replicate == r)
+            trueTSF <- trueTSF$tsfFinal
 
-meanTSF
+            for (s in samplingEffort)
+            coxFC <- weibFC <- expFC <- NULL
 
-
-meanTSF <- ggplot(output, aes(x=year, y=meanTSF,
-                    group=id, color = treatment)) +
-    scale_colour_manual(values = colTreatment) +
-    #stat_summary(fun.data = "median_hilow", geom = "smooth", size=5) +
-    geom_line(aes(group=id),
-              size=1,
-              type=1,
-               alpha=0.5) +
-    facet_wrap(fireCycle ~ treatment, ncol = 3,
-               scales = "free")
-
-
-png(filename = "simTSF.png", width = 800, height = 1024, units = "px",
-    pointsize = 32)
-
-    print(meanTSF)
-dev.off()
-
-
-aab <- ggplot(output, aes(x=year, y=areaBurned_ha,
-                              group=id, color = treatment)) +
-    scale_colour_manual(values = colTreatment) +
-    #stat_summary(fun.data = "median_hilow", geom = "smooth", size=5) +
-    geom_line(aes(group=id),
-              size=1,
-              type=1,
-              alpha=0.5) +
-    facet_wrap(fireCycle ~ treatment, ncol = 3,
-                scales = "fixed")
-
-
-png(filename = "simAAB.png", width = 800, height = 1024, units = "px",
-    pointsize = 32)
-
-print(aab)
-dev.off()
+                for (i in 1:nTrials) {
+                    tsf <- sample(trueTSF, s)
+                    # applying censoring function
+                    tsf <- censFnc(tsf, 100, 300)
+                    coxFC <- c(coxFC, coxFitFnc(tsf)$cycle)
+                    weibFC <- c(weibFC, weibFitFnc(tsf)$cycle)
+                    expFC <- c(expFC, expFitFnc(tsf)$cycle)
+                }
+        hist(coxFC, breaks = 20)
+        hist(weibFC, breaks = 20)
+        hist(expFC, breaks = 20)
+    }
+}

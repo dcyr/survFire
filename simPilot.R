@@ -10,8 +10,6 @@ dir.create(wwd)
 setwd(wwd)
 rm(wwd)
 
-####################################################################
-####################################################################
 ######
 ######      initial landscape
 ######
@@ -45,26 +43,26 @@ fireSizeFit <- fitdistr(fireSizeObs, "lognormal")
 ######
 ######      simulations
 ######
-source("../scripts/simFunc.R")
+source("../scripts/simFnc.R")
 ####################################################################
 ####################################################################
-nRep <- 25
+nRep <- 1
 require(doSNOW)
-clusterN <- 3  ### choose number of nodes to add to cluster.
+clusterN <- 1  ### choose number of nodes to add to cluster.
 #######
 cl = makeCluster(clusterN)
 registerDoSNOW(cl)
 for (fc in c(62.5, 125, 250, 500, 1000)) {
-    for (corr in c(-0.5, 0, 0.5)) {
+    for (corr in c(0)) {
         #### initial landscape with tsf == 0
-        #initialLandscape[] <- 1
+        initialLandscape[] <- 1
         #### or initial landscape at equilibrium according to simulated fire cycle
-        initialLandscape[] <- round(rexp(ncell(initialLandscape), rate = 1/fc))
-        initialLandscape[initialLandscape == 1] <- fc # removing zeros, remplace by fc
+        #initialLandscape[] <- round(rexp(ncell(initialLandscape), rate = 1/fc))
+        #initialLandscape[initialLandscape == 1] <- fc # removing zeros, remplace by fc
 
         ##
         output <- foreach(i = 1:nRep) %dopar%  {
-            output <- sim(initialLandscape, simDuration = 300,
+            output <- sim(initialLandscape, simDuration = 2000,
                           fireCycle = fc, fireSizeFit = fireSizeFit, corr = corr)
             return(output)
         }

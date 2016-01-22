@@ -9,12 +9,12 @@ sim <- function(initialLandscape, simDuration, fireCycle, fireSizeFit,
                 corr = 0) {
 
 
-    if(abs(corr)>0.9) stop("correlation must be between -0.9 and 0.9")
+    if(abs(corr)>0.9) stop("correlation should be between -0.5 and 0.5")
 
    # coeff <- timeXfireCorr * 2
 
     require(raster)
-    source("../scripts/fireSpreadFunc.R")
+    source("../scripts/fireSpreadFnc.R")
 
     #### converting number of pixels to hectares
     scaleFactor <- prod(res(initialLandscape))/10000
