@@ -23,6 +23,51 @@ totalArea <- ncell(refRaster) * prod(res(refRaster))/10000 ### total area in hec
 ###
 
 
+####################################################################
+####################################################################
+######
+######      Fire-size distribution figure
+######
+library(MASS)
+####################################################################
+####################################################################
+
+### empirical reference
+fireObs <- read.csv("../data/fireObs.csv", header=TRUE)
+fireSizeObs <- fireObs[, "SIZE"]
+fireSizeObs <- fireSizeObs[order(fireSizeObs)]
+### fire size distribution
+fireSizeFit <- fitdistr(fireSizeObs, "lognormal")
+#########
+xlim <- c(0, 100000)
+options(scipen=7) ###force fixed notation (no scientific notation unless > 10E7 )
+# fitted fire size cdf
+png(filename = paste0("fireSizeCDF.png"),
+    #width = 1800, height = (160*length(unique(df$species))+200), units = "px",
+    width = 4, height = 3.5, units = "in", res = 300, pointsize = 8,
+    bg = "white")
+
+    plot(plnorm(1:max(fireSizeObs), mean = fireSizeFit$estimate[1],
+                 sdlog = fireSizeFit$estimate[2]),
+         type = "l", xlim = xlim,
+         main = "Fire size cumulative probability distribution",
+         ylab = "Cumulative probability",
+         xlab = "Fire size (ha)", lty = 3)
+    # empirical fire size cdf
+    n <- length(fireSizeObs)
+    lines(fireSizeObs, (1:n)/n, type = 's')
+    #
+    legend(x = 0.7*xlim[2], y = 0.9,
+           c("Empirical CDF", "Fitted CDF", "Individual fires"),
+           lty = c(1, 3, 1), lwd = 1, col = c("black", "black", "indianred"),
+           cex=0.75,
+           bg="white")
+    #
+    rug(fireSizeObs, ticksize = 0.03, side = 1, lwd = 1, col = "indianred")
+    abline(h = c(0,1), lwd = 0.2, lty = 2, col = "grey")
+dev.off()
+
+
 
 ####################################################################
 ####################################################################
