@@ -5,7 +5,7 @@
 expFitFnc <- function(x) {        ### negative exponential fitting
     surv.exp <- survreg(x ~ 1, dist="exponential")
     b <- exp(surv.exp$coefficients)
-    list(cycle=b, freq=1/b)
+    return(list(cycle=b, freq=1/b))
 }
 
 weibFitFnc <- function(x) {        ### weibull exponential fitting
@@ -13,7 +13,7 @@ weibFitFnc <- function(x) {        ### weibull exponential fitting
     b <- exp(surv.weib$coefficients)
     c <- 1/(surv.weib$scale)
     fc <- b*gamma((1/c)+1)
-    list(cycle=fc, freq=1/fc)
+    return(list(cycle=fc, freq=1/fc))
 }
 
 coxFitFnc <- function(x) {
@@ -21,5 +21,5 @@ coxFitFnc <- function(x) {
     base.cox <- basehaz(cox_reg)
     ##fc <- max(base.cox[,2])/max(base.cox[,1])
     fc <- ifelse(length(base.cox[,1])==1, max(base.cox[,2])/max(base.cox[,1]), mean(c(base.cox[length(base.cox[,1])-1,2],base.cox[length(base.cox[,1]),2])) / mean(c(base.cox[length(base.cox[,1])-1,1],base.cox[length(base.cox[,1]),1])))
-    list(cycle=fc, freq=1/fc)
+    return(list(cycle=fc, freq=1/fc))
 }

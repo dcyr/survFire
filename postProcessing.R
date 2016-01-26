@@ -1,10 +1,9 @@
-####################################################################
-####################################################################
-####################################################################
+################################################################################
+################################################################################
 rm(list=ls())
 require(raster)
-####################################################################
-####################################################################
+################################################################################
+################################################################################
 setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
 outputFolder <- paste(getwd(), "compiledOutputs", sep="/")
 wwd <- paste(getwd(), Sys.Date(), sep="/")
@@ -20,66 +19,71 @@ e <- extent(refRaster, 11, nrow(refRaster)-10, 11, ncol(refRaster)-10)
 refRaster <- crop(refRaster, e)
 totalArea <- ncell(refRaster)
 totalArea <- ncell(refRaster) * prod(res(refRaster))/10000 ### total area in hectare
-###
 
-
-####################################################################
-####################################################################
+################################################################################
+################################################################################
 ######
 ######      Fire-size distribution figure
 ######
 library(MASS)
-####################################################################
-####################################################################
+################################################################################
+################################################################################
 
 ### empirical reference
 fireObs <- read.csv("../data/fireObs.csv", header=TRUE)
 fireSizeObs <- fireObs[, "SIZE"]
 fireSizeObs <- fireSizeObs[order(fireSizeObs)]
-### fire size distribution
+### fitted fire size distribution
 fireSizeFit <- fitdistr(fireSizeObs, "lognormal")
 #########
 xlim <- c(0, 100000)
 options(scipen=7) ###force fixed notation (no scientific notation unless > 10E7 )
-# fitted fire size cdf
+
 png(filename = paste0("fireSizeCDF.png"),
-    #width = 1800, height = (160*length(unique(df$species))+200), units = "px",
     width = 4, height = 3.5, units = "in", res = 300, pointsize = 8,
     bg = "white")
 
+    ### fitted fire size cdf
     plot(plnorm(1:max(fireSizeObs), mean = fireSizeFit$estimate[1],
                  sdlog = fireSizeFit$estimate[2]),
          type = "l", xlim = xlim,
          main = "Fire size cumulative probability distribution",
          ylab = "Cumulative probability",
          xlab = "Fire size (ha)", lty = 3)
-    # empirical fire size cdf
+    ### empirical fire size cdf
     n <- length(fireSizeObs)
     lines(fireSizeObs, (1:n)/n, type = 's')
-    #
+    ###
     legend(x = 0.7*xlim[2], y = 0.9,
            c("Empirical CDF", "Fitted CDF", "Individual fires"),
            lty = c(1, 3, 1), lwd = 1, col = c("black", "black", "indianred"),
            cex=0.75,
            bg="white")
-    #
+    ###
     rug(fireSizeObs, ticksize = 0.03, side = 1, lwd = 1, col = "indianred")
     abline(h = c(0,1), lwd = 0.2, lty = 2, col = "grey")
+
 dev.off()
+######
+################################################################################
+################################################################################
 
 
 
-####################################################################
-####################################################################
+################################################################################
+################################################################################
 ######
 ######      2000-yrs constant fc simulations
 ######
 require(dplyr)
 require(zoo) ### for 'rollmean'
-####################################################################
-####################################################################
-output <- get(load(paste(outputFolder, "simOutputCompiled2000.RData", sep="/")))
+################################################################################
+################################################################################
 
+####################################################################
+######  true fire cycle statistics computation
+output <- get(load(paste(outputFolder, "simOutputCompiled2000.RData", sep="/")))
+######
 
 output <- output %>%
     filter(replicate == 1) %>%
@@ -98,22 +102,15 @@ for (fc in unique(output$fireCycle)) {
         filter(fireCycle == fc)
     year <- trueFC[[fc]]$year
     aab <- trueFC[[fc]]$areaBurned_ha
-
-
+    ###
     trueFC[[fc]][,"trueFC50"] <- totalArea/rollmean(aab, 50, align = "right", fill = NA)
     trueFC[[fc]][,"trueFC150"] <- totalArea/rollmean(aab, 150, align = "right", fill = NA)
     trueFC[[fc]][,"trueFC300"] <- totalArea/rollmean(aab, 300, align = "right", fill = NA)
-
-
 }
 
 
-#####################
-#####################
-
-############################################
-##### plotting 2000-yrs simulation examples
-############################################
+####################################################################
+######  plotting 2000-yrs simulation examples
 
 yLimAAB <- c(0, max(as.numeric(lapply(trueFC, function(x) max(x$areaBurned_ha)))))
 
@@ -125,12 +122,11 @@ for (fc in c(62.5, 125, 250, 500, 1000)) {
     FC150 <- df$trueFC150
     FC300 <- df$trueFC300
     aab <- df$areaBurned_ha
-    #
+    ###
     realizedFC <- totalArea/mean(aab)
 
 
     png(filename = paste0("simTrueTSF", fc, ".png"),
-        #width = 1800, height = (160*length(unique(df$species))+200), units = "px",
         width = 8, height = 5, units = "in", res = 300, pointsize = 8,
         bg = "white")
 
@@ -163,33 +159,31 @@ for (fc in c(62.5, 125, 250, 500, 1000)) {
 
     dev.off()
 }
+######
+################################################################################
+################################################################################
 
 
-#####################
-#####################
-#####################
 
 
-
-####################################################################
-####################################################################
+################################################################################
+################################################################################
 ######
 ######      300-yrs simulations with replicates
 ######
 require(dplyr)
 require(zoo) ### for 'rollmean'
-####################################################################
-####################################################################
+################################################################################
+################################################################################
 
-####################
-#####  True fire cycle
-
+####################################################################
+######  true fire cycle statistics computation
 output <- get(load(paste(outputFolder, "simOutputCompiled.RData", sep="/")))
-
+####################################################################
 output <- output %>%
     mutate(id = paste0(fireCycle, replicate, treatment))
 output$treatment <- as.factor(output$treatment)
-
+### ordering (following loop depends or ordered time series)
 output <- output %>%
     arrange(year, replicate, treatment, fireCycle)
 
@@ -217,7 +211,7 @@ for (fc in unique(output$fireCycle)) {
     }
 
 }
-## unlisting everything
+### Unlisting everything (a "foreach" construct in the previous loop could avoid that)
 tmp <- list()
 for (fc in unique(output$fireCycle)) {
     tmp2 <- list()
@@ -232,22 +226,21 @@ trueFC <- merge(trueFC, trueFC %>%
                     group_by(fireCycle, treatment, replicate) %>%
                     summarise(meanAAB = mean(areaBurned_ha)))
 
-# keep only complete cases (year == 300)
+### Keep only complete cases (year == 300)
 trueFC <- trueFC[complete.cases(trueFC),]
-# house cleaning
+### further house cleaning
 rownames(trueFC) <-  1:nrow(trueFC)
 trueFC <- trueFC[,-which(colnames(trueFC) %in% c("id", "areaBurned_ha"))]
 trueFC <- trueFC %>%
     arrange(fireCycle, treatment, replicate)
 
 
-# ############################################
-# ##### plotting 300-yrs simulations results
-# require(ggplot2)
-# ############################################
-# geom_histogram()
+####################################################################
+######  Plotting 300-yrs simulations results
+require(ggplot2)
+############################################
 
-### illustrate the following graphically (with histograms?)
+### illustrate the following graphically (with geom_histogram?)
 trueFC %>%
     group_by(fireCycle, treatment) %>%
     summarise(meanTSF = mean(meanTSF),
@@ -257,42 +250,5 @@ trueFC %>%
 
 
 ############################################
-##### simulating field sampling and FC estimation
-require(dplyr)
-require(ggplot2)
-require(survival)
-source("../scripts/censFnc.R")
-source("../scripts/fcEstSurvFnc.R")
-############################################
-tsfFinal <- get(load(paste(outputFolder, "tsfFinal.RData", sep="/")))
-samplingEffort <- 100
-nTrials <- 1000
+##### loading FC estimation obtained from simulated field sampling experiment
 
-
-for (fc in unique(tsfFinal$fireCycle)){
-    trueTSF <- tsfFinal %>%
-        filter(fireCycle == fc)
-    for (treat in unique(tsfFinal$treatment)) {
-        trueTSF <- trueTSF %>%
-            filter(treatment == treat)
-        for (r in unique(tsfFinal$replicate)) {
-            trueTSF <- trueTSF %>%
-                filter(replicate == r)
-            trueTSF <- trueTSF$tsfFinal
-
-            for (s in samplingEffort)
-            coxFC <- weibFC <- expFC <- NULL
-
-                for (i in 1:nTrials) {
-                    tsf <- sample(trueTSF, s)
-                    # applying censoring function
-                    tsf <- censFnc(tsf, 100, 300)
-                    coxFC <- c(coxFC, coxFitFnc(tsf)$cycle)
-                    weibFC <- c(weibFC, weibFitFnc(tsf)$cycle)
-                    expFC <- c(expFC, expFitFnc(tsf)$cycle)
-                }
-        hist(coxFC, breaks = 20)
-        hist(weibFC, breaks = 20)
-        hist(expFC, breaks = 20)
-    }
-}
