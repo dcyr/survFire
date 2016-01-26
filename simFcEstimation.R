@@ -21,6 +21,7 @@ source("../scripts/censFnc.R")
 source("../scripts/fcEstSurvFnc.R")
 ############################################
 tsfFinal <- get(load(paste(outputFolder, "tsfFinal.RData", sep="/")))
+# the following design took 2h40min to run with 3 cores on my machine
 sampleSize <- c(10, 25, 50, 75, 94, 250)
 nTrials <- 400
 
@@ -95,5 +96,5 @@ stopCluster(cl)
 t2 <- Sys.time()
 ##
 print(t2-t1)
-save(survivalEstimates, file = "survEstimate.RData")
+save(survivalEstimates, file = "survivalEstimates.RData")
 
