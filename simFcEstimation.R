@@ -17,6 +17,7 @@ require(survival)
 require(dplyr)
 require(reshape2)
 require(doSNOW)
+require(parallel)
 source("../scripts/censFnc.R")
 source("../scripts/fcEstSurvFnc.R")
 ############################################
@@ -26,7 +27,7 @@ sampleSize <- c(10, 25, 50, 75, 94, 150, 250, 500)
 nTrials <- 400
 
 ###
-clusterN <- 3  ### choose number of nodes to add to cluster.
+clusterN <- detectCores()-1  ### choose number of nodes to add to cluster.
 sysName <- Sys.info()["sysname"]
 opts <- list(chunkSize=clusterN)
 #
