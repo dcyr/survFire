@@ -73,7 +73,7 @@ survivalEstimates <- foreach(fc = unique(tsfFinal$fireCycle), .combine="rbind") 
                     exp <- expFitFnc(tsf)$cycle
                     # estimating FC from uncensored samples
                     coxUncensored <- coxFitFnc(tsfUncensored)$cycle
-                    weibUncensored <- wirbFitFnc(tsfUncensored)$cycle
+                    weibUncensored <- weibFitFnc(tsfUncensored)$cycle
                     expUncensored <- expFitFnc(tsfUncensored)$cycle
                     #
                     tmp <- data.frame(cox, weib, exp, coxUncensored, weibUncensored, expUncensored)
