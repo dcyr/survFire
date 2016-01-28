@@ -241,16 +241,16 @@ require(ggplot2)
 require(quantreg)
 ############################################
 
-### illustrate the following graphically (with geom_histogram?)
-# trueFC %>%
-#     group_by(fireCycle, treatment) %>%
-#     summarise(meanTSF = mean(meanTSF),
-#               mean50 = mean(trueFC50),
-#               mean150 = mean(trueFC150),
-#               mean300 = mean(trueFC300))
-# ###
-# rm(output)
+## illustrate the following graphically (with geom_histogram?)
+trueFC %>%
+    group_by(fireCycle, treatment) %>%
+    summarise(meanTSF = mean(meanTSF),
+              mean50 = mean(trueFC50),
+              mean150 = mean(trueFC150),
+              mean300 = mean(trueFC300))
 ###
+rm(output)
+##
 
 
 ############################################
