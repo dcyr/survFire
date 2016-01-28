@@ -238,17 +238,18 @@ trueFC <- trueFC %>%
 ####################################################################
 ######  Plotting 300-yrs simulations results
 require(ggplot2)
+require(quantreg)
 ############################################
 
 ### illustrate the following graphically (with geom_histogram?)
-trueFC %>%
-    group_by(fireCycle, treatment) %>%
-    summarise(meanTSF = mean(meanTSF),
-              mean50 = mean(trueFC50),
-              mean150 = mean(trueFC150),
-              mean300 = mean(trueFC300))
-###
-rm(output)
+# trueFC %>%
+#     group_by(fireCycle, treatment) %>%
+#     summarise(meanTSF = mean(meanTSF),
+#               mean50 = mean(trueFC50),
+#               mean150 = mean(trueFC150),
+#               mean300 = mean(trueFC300))
+# ###
+# rm(output)
 ###
 
 
@@ -262,80 +263,117 @@ survivalEstimates$sampleSize <- as.numeric(survivalEstimates$sampleSize)
 #colnames(trueFC)
 
 survivalEstimates <- merge(survivalEstimates, trueFC)
-#head(survivalEstimates, 10)
 
-df <- survivalEstimates
-df <- survivalEstimates %>%
-    filter(method == "cox")
+#head(survivalEstimates, 10)
+# df <- survivalEstimates %>%
+#     filter(method == "cox")
 # head(df)
 residualsDF <- survivalEstimates %>%
     mutate(residual300 =  estimate - trueFC300,
            residual150 = estimate - trueFC150,
            residual50 = estimate - trueFC50) %>%
     group_by(fireCycle, treatment, sampleSize, method) %>%
-    summarise(meanResidual300 = mean(residual300),
-              meanResidual150 = mean(residual150),
-              meanResidual50 = mean(residual50))
+    summarise(meanResidual300 = round(mean(residual300), 1),
+              meanResidual150 = round(mean(residual150), 1),
+              meanResidual50 = round(mean(residual50), 1),
+              p01Residual300 = round(quantile(residual300, 0.01), 1),
+              p05Residual300 = round(quantile(residual300, 0.05), 1),
+              p50Residual300 = round(quantile(residual300, 0.5), 1),
+              p95Residual300 = round(quantile(residual300, 0.95), 1),
+              p99Residual300 = round(quantile(residual300, 0.99), 1))
+
+df <- residualsDF %>%
+    filter(method %in% c("cox", "weib", "exp")) %>%
+    filter((sampleSize == 10 & fireCycle == 500 & treatment %in% c(-0.5, 0)) == F) %>%
+    filter((sampleSize == 10 & fireCycle == 1000) == F) %>%
+    filter((sampleSize == 25 & fireCycle == 1000 & treatment == -0.5) == F) %>%
+    filter((sampleSize == 25 & fireCycle == 1000 & treatment == 0 & method == "exp") == F)
 
 
-ylim = c(-200, 200)
+boxPlotGraph <- ggplot(df, aes(x = factor(sampleSize))) +#,color = method)) +
 
-boxPlotGraph <- ggplot(df, aes(x = sampleSize, y = estimate - trueFC300,
-                                 group = sampleSize, fill = method)) +
-    #colour = Species, order=as.numeric(Species))) +
-    geom_boxplot() +
-    #stat_sum_df("mean_cl_boot", geom = "smooth", mapping = aes(group = sampleSize)) + ## "mean_cl_boot' being a
-    #stat_summary(fun.y="sum", geom="line", size=3) +
-    # ylim(ylim) +
-    #xlim(xlim) +
-    ylim(ylim) +
-    facet_grid(fireCycle ~ treatment, scales = "free") +
-    #scale_colour_manual(values=cols) +
-    #guides(fill = guide_legend(reverse = TRUE)) +
-    labs(title = "Put title here",
-         y = "Estimated - True fire cycle\n(residuals)",
-         x = "Sample size")
-
-png(filename=paste("biomassSpp", i, "_", a, "_SubReg", sr, ".png", sep=""),
-    width = 2400, height = 2400, units = "in", pointsize=72)
-print(g4 + theme_grey(base_size=72) +
-          scale_x_continuous(breaks = breaks) +
-          theme(axis.text.x = element_text(size=44, angle = 45, hjust = 1),
-                axis.text.y = element_text(size=48),
-                strip.text.x = element_text(size=40),
-                strip.text.y = element_text(size=60)))
-dev.off()
-
-df[which(is.infinite(df$estimate)), "estimate"] <- 10000
-
-summary(survivalEstimates)
-
-ylim <- c(-200, 200)
-xlim <- c(0, max(df$sampleSize)+10)
-g4 <- ggplot(df, aes(x = sampleSize, y = estimate - trueFC300,
-                     group = sampleSize)) +
-                                    #colour = Species, order=as.numeric(Species))) +
-    geom_boxplot(aes(fill = method)) +
-    #stat_sum_df("mean_cl_boot", geom = "smooth", mapping = aes(group = sampleSize)) + ## "mean_cl_boot' being a
-    #stat_summary(fun.y="sum", geom="line", size=3) +
    # ylim(ylim) +
-    #xlim(xlim) +
+    geom_boxplot(aes(ymin = p01Residual300,
+                     lower = p05Residual300,
+                     middle = meanResidual300,
+                     upper = p95Residual300,
+                     ymax = p99Residual300,
+                     #group = sampleSize,
+                     fill = method),
+                 position = position_dodge(width = 0.5),
+                 width = 0.5,
+                 stat = "identity",
+                 size = 0.3,
+                 alpha = 0.8) + #
     facet_grid(fireCycle ~ treatment, scales = "free") +
+    labs(title = "Put title here",
+         y = "Estimated - True fire cycle\n(residuals)",
+         x = "Sample size")
+
+png(filename="residuals.png",
+    width = 10, height = 6, units = "in", res = 600, pointsize=10)
+
+print(boxPlotGraph)
+# print(g4 + theme_grey(base_size=72) +
+#           scale_x_continuous(breaks = breaks) +
+#           theme(axis.text.x = element_text(size=44, angle = 45, hjust = 1),
+#                 axis.text.y = element_text(size=48),
+#                 strip.text.x = element_text(size=40),
+#                 strip.text.y = element_text(size=60)))
+dev.off()
+
+#     ggplot(residualsDF, aes(x = sampleSize, y = estimate - trueFC300,
+#                                  group = sampleSize, fill = factor(method))) +
+    #colour = Species, order=as.numeric(Species))) +
+    #geom_point(size = 0.005, color = "black", alpha = 0.1) +
+    #stat_quantile() +
+#     geom_boxplot(aes(fill = factor(method)),
+#                   outlier.size = 0.05,
+#                   outlier.colour = "blue") +
+    #stat_sum_df("mean_cl_boot", geom = "smooth", mapping = aes(group = sampleSize)) + ## "mean_cl_boot' being a
+    #stat_summary(fun.y="sum", geom="line", size=3) +
+    ylim(ylim) +
+    #xlim(xlim) +
+    #ylim(ylim) +
+    facet_grid(fireCycle ~ treatment, scales = "fixed") +
     #scale_colour_manual(values=cols) +
     #guides(fill = guide_legend(reverse = TRUE)) +
     labs(title = "Put title here",
          y = "Estimated - True fire cycle\n(residuals)",
          x = "Sample size")
+#
 
-png(filename=paste("biomassSpp", i, "_", a, "_SubReg", sr, ".png", sep=""),
-    width = 2400, height = 2400, units = "in", pointsize=72)
-    print(g4 + theme_grey(base_size=72) +
-              scale_x_continuous(breaks = breaks) +
-              theme(axis.text.x = element_text(size=44, angle = 45, hjust = 1),
-                    axis.text.y = element_text(size=48),
-                    strip.text.x = element_text(size=40),
-                    strip.text.y = element_text(size=60)))
-dev.off()
-
-
-}
+#
+# df[which(is.infinite(df$estimate)), "estimate"] <- 10000
+#
+# summary(survivalEstimates)
+#
+# ylim <- c(-200, 200)
+# xlim <- c(0, max(df$sampleSize)+10)
+# g4 <- ggplot(df, aes(x = sampleSize, y = estimate - trueFC300,
+#                      group = sampleSize)) +
+#                                     #colour = Species, order=as.numeric(Species))) +
+#     geom_boxplot(aes(fill = method)) +
+#     #stat_sum_df("mean_cl_boot", geom = "smooth", mapping = aes(group = sampleSize)) + ## "mean_cl_boot' being a
+#     #stat_summary(fun.y="sum", geom="line", size=3) +
+#    # ylim(ylim) +
+#     #xlim(xlim) +
+#     facet_grid(fireCycle ~ treatment, scales = "free") +
+#     #scale_colour_manual(values=cols) +
+#     #guides(fill = guide_legend(reverse = TRUE)) +
+#     labs(title = "Put title here",
+#          y = "Estimated - True fire cycle\n(residuals)",
+#          x = "Sample size")
+#
+# png(filename=paste("biomassSpp", i, "_", a, "_SubReg", sr, ".png", sep=""),
+#     width = 2400, height = 2400, units = "in", pointsize=72)
+#     print(g4 + theme_grey(base_size=72) +
+#               scale_x_continuous(breaks = breaks) +
+#               theme(axis.text.x = element_text(size=44, angle = 45, hjust = 1),
+#                     axis.text.y = element_text(size=48),
+#                     strip.text.x = element_text(size=40),
+#                     strip.text.y = element_text(size=60)))
+# dev.off()
+#
+#
+# }

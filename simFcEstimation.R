@@ -60,35 +60,26 @@ survivalEstimates <- foreach(fc = unique(tsfFinal$fireCycle), .combine="rbind") 
                         .packages = c("survival")) %dopar%  {
 
                     cox <-  weib <- exp <- coxUncensored <- weibUncensored <- expUncensored <- Inf
-
-                    while (is.infinite(cox) | ### Also tried with a 'repeat' loop
-                           is.infinite(weib) | ### did not seem to work properly nested in 'foreach'
-                           is.infinite(exp)) {
-                        # sampling true tsf
-                        tsf <- sample(trueTSF, ss)
-                        tsf[tsf == 0] <- 0.1
-                        # transforming uncensored tsf sample into 'Surv' object
-                        tsfUncensored <- Surv(tsf, rep(1, length(tsf)))
-                        # applying censoring function
-                        tsf <- censFnc(tsf, 100, 300)
-                        ### estimating FC from censored samples
-                        # 'repeat' loop are used to avoid 'Inf' FC estimates
-                        # Think about the bias...
-                        cox <- coxFitFnc(tsf)$cycle
-                        weib <- coxFitFnc(tsf)$cycle
-                        exp <- expFitFnc(tsf)$cycle
-                        # estimating FC from uncensored samples
-                        coxUncensored <- coxFitFnc(tsfUncensored)$cycle
-                        weibUncensored <- coxFitFnc(tsfUncensored)$cycle
-                        expUncensored <- expFitFnc(tsfUncensored)$cycle
-                    }
-
+                    # sampling true tsf
+                    tsf <- sample(trueTSF, ss)
+                    tsf[tsf == 0] <- 0.1
+                    # transforming uncensored tsf sample into 'Surv' object
+                    tsfUncensored <- Surv(tsf, rep(1, length(tsf)))
+                    # applying censoring function
+                    tsf <- censFnc(tsf, 100, 300)
+                    ### estimating FC from censored samples
+                    cox <- coxFitFnc(tsf)$cycle
+                    weib <- weibFitFnc(tsf)$cycle
+                    exp <- expFitFnc(tsf)$cycle
+                    # estimating FC from uncensored samples
+                    coxUncensored <- coxFitFnc(tsfUncensored)$cycle
+                    weibUncensored <- wirbFitFnc(tsfUncensored)$cycle
+                    expUncensored <- expFitFnc(tsfUncensored)$cycle
+                    #
                     tmp <- data.frame(cox, weib, exp, coxUncensored, weibUncensored, expUncensored)
                     return(round(tmp, 1))
 
                 }
-
-
                 tmp <- data.frame(fireCycle = as.numeric(fc),
                                     treatment = treat,
                                     replicate = as.numeric(r),
