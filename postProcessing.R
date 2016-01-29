@@ -239,35 +239,56 @@ trueFC <- trueFC %>%
 ######  Plotting 300-yrs simulations results
 require(ggplot2)
 require(quantreg)
-############################################
+require(RColorBrewer)
+require(dichromat)
+####################################################################
 
 ## illustrate the following graphically (with geom_histogram?)
-trueFC %>%
-    group_by(fireCycle, treatment) %>%
-    summarise(meanTSF = mean(meanTSF),
-              mean50 = mean(trueFC50),
-              mean150 = mean(trueFC150),
-              mean300 = mean(trueFC300))
-###
-rm(output)
+# trueFC %>%
+#     group_by(fireCycle, treatment) %>%
+#     summarise(meanTSF = mean(meanTSF),
+#               mean50 = mean(trueFC50),
+#               mean150 = mean(trueFC150),
+#               mean300 = mean(trueFC300))
+# ###
+# rm(output)
 ##
 
 
-############################################
+####################################################################
 ##### loading FC estimation obtained from simulated field sampling experiment
-
 survivalEstimates <- get(load(paste(outputFolder, "survivalEstimates.RData", sep ="/")))
 survivalEstimates$sampleSize <- as.numeric(survivalEstimates$sampleSize)
+####################################################################
 
-#colnames(survivalEstimates)
-#colnames(trueFC)
+# ### Computing the proportion of non finite values produced (necessary for long FC)
+# tmp <- survivalEstimates %>%
+#     group_by(fireCycle, treatment, sampleSize, method) %>%
+#     summarize(propNonFinite = sum(is.finite(estimate))/n())
+# #
+# survivalEstimates <- merge(survivalEstimates, tmp)
+# rm(tmp)
 
+
+##### Filtering results that were deemed uninteresting through a trial and error process
+##### (Usually because it creates CI so wide they were useless)
+survivalEstimates <- survivalEstimates %>%
+    #filter(propNonFinite > 0.995) %>%
+    filter(is.finite(estimate)) %>%
+    filter((fireCycle >= 1000) == F) %>%
+    filter((fireCycle >= 125 & sampleSize <= 10) == F) %>%
+    filter((fireCycle >= 500 & method == "weib") == F) %>%
+    filter((fireCycle >= 250 & sampleSize <= 25 & method == "weib") == F) %>%
+    filter((fireCycle >= 500 & sampleSize <= 25 &  treatment == "-0.5") == F)
+#     filter((sampleSize == 25 & fireCycle >= 1000) == F) %>%
+#     filter((method == "exp" & fireCycle >= 1000 & treatment == "-0.5") == F) %>%
+#     filter((sampleSize <= 94 & fireCycle >= 1000 & treatment == "-0.5") == F)
+
+### the following takes a while ...
 survivalEstimates <- merge(survivalEstimates, trueFC)
 
-#head(survivalEstimates, 10)
-# df <- survivalEstimates %>%
-#     filter(method == "cox")
-# head(df)
+
+### Computing residuals to plot
 residualsDF <- survivalEstimates %>%
     mutate(residual300 =  estimate - trueFC300,
            residual150 = estimate - trueFC150,
@@ -276,44 +297,63 @@ residualsDF <- survivalEstimates %>%
     summarise(meanResidual300 = round(mean(residual300), 1),
               meanResidual150 = round(mean(residual150), 1),
               meanResidual50 = round(mean(residual50), 1),
-              p01Residual300 = round(quantile(residual300, 0.01), 1),
+              p005Residual300 = round(quantile(residual300, 0.005), 1),
+              p025Residual300 = round(quantile(residual300, 0.025), 1),
               p05Residual300 = round(quantile(residual300, 0.05), 1),
               p50Residual300 = round(quantile(residual300, 0.5), 1),
               p95Residual300 = round(quantile(residual300, 0.95), 1),
-              p99Residual300 = round(quantile(residual300, 0.99), 1))
+              p975Residual300 = round(quantile(residual300, 0.975), 1),
+              p995Residual300 = round(quantile(residual300, 0.995), 1))
 
+### renaming factors for nice plotting
+fcLevels <- unique(paste0(residualsDF$fireCycle, "-yrs. FC"))
+residualsDF$fireCycle <- factor(paste0(residualsDF$fireCycle, "-yrs. FC"), levels = fcLevels)
+residualsDF$treatment <- factor(residualsDF$treatment)
+levels(residualsDF$treatment) <- c("Decreasing fire activity",
+                                   "Constant fire activity",
+                                   "Increasing fire activity")
+residualsDF$treatment <- factor(residualsDF$treatment, levels = rev(levels(residualsDF$treatment)))
+residualsDF$fireCycle <- factor(residualsDF$fireCycle)
+
+### The 'data.frame' to plot
 df <- residualsDF %>%
-    filter(method %in% c("cox", "weib", "exp")) %>%
-    filter((sampleSize == 10 & fireCycle == 500 & treatment %in% c(-0.5, 0)) == F) %>%
-    filter((sampleSize == 10 & fireCycle == 1000) == F) %>%
-    filter((sampleSize == 25 & fireCycle == 1000 & treatment == -0.5) == F) %>%
-    filter((sampleSize == 25 & fireCycle == 1000 & treatment == 0 & method == "exp") == F)
+    filter(method %in% c("cox", "weib", "exp"))
+df <- droplevels(df)
+### renaming 'method'
+levels(df$method) <- c("Cox", "Weibull", "Exponential")
 
-
+########################################################################################################################################
+##### Boxplot - Residuals (Residuals by SampleSize, for each fire cycles and treatments
+###############################################################
 boxPlotGraph <- ggplot(df, aes(x = factor(sampleSize))) +#,color = method)) +
-
-   # ylim(ylim) +
-    geom_boxplot(aes(ymin = p01Residual300,
+    geom_hline(yintercept = 0, size = 0.25, color = "grey") +
+    geom_boxplot(aes(ymin = p025Residual300,
                      lower = p05Residual300,
                      middle = meanResidual300,
                      upper = p95Residual300,
-                     ymax = p99Residual300,
+                     ymax = p975Residual300,
                      #group = sampleSize,
                      fill = method),
                  position = position_dodge(width = 0.5),
                  width = 0.5,
                  stat = "identity",
                  size = 0.3,
-                 alpha = 0.8) + #
+                 alpha = 1) + #
     facet_grid(fireCycle ~ treatment, scales = "free") +
-    labs(title = "Put title here",
-         y = "Estimated - True fire cycle\n(residuals)",
-         x = "Sample size")
+    labs(title = "Fire cycle estimation error from simulated forest fire history\nreconstruction affected by censoring\n",
+         y = "Estimate - True fire cycle\n(residuals)",
+         x = "\nSample size")
 
-png(filename="residuals.png",
+###
+
+png(filename="residualsCens.png",
     width = 10, height = 6, units = "in", res = 600, pointsize=10)
 
-print(boxPlotGraph)
+    print(boxPlotGraph +
+              scale_fill_brewer(type = "qual") +#, palette = 1, direction = 1)
+
+
+              theme_bw())
 # print(g4 + theme_grey(base_size=72) +
 #           scale_x_continuous(breaks = breaks) +
 #           theme(axis.text.x = element_text(size=44, angle = 45, hjust = 1),
@@ -322,58 +362,3 @@ print(boxPlotGraph)
 #                 strip.text.y = element_text(size=60)))
 dev.off()
 
-#     ggplot(residualsDF, aes(x = sampleSize, y = estimate - trueFC300,
-#                                  group = sampleSize, fill = factor(method))) +
-    #colour = Species, order=as.numeric(Species))) +
-    #geom_point(size = 0.005, color = "black", alpha = 0.1) +
-    #stat_quantile() +
-#     geom_boxplot(aes(fill = factor(method)),
-#                   outlier.size = 0.05,
-#                   outlier.colour = "blue") +
-    #stat_sum_df("mean_cl_boot", geom = "smooth", mapping = aes(group = sampleSize)) + ## "mean_cl_boot' being a
-    #stat_summary(fun.y="sum", geom="line", size=3) +
-    ylim(ylim) +
-    #xlim(xlim) +
-    #ylim(ylim) +
-    facet_grid(fireCycle ~ treatment, scales = "fixed") +
-    #scale_colour_manual(values=cols) +
-    #guides(fill = guide_legend(reverse = TRUE)) +
-    labs(title = "Put title here",
-         y = "Estimated - True fire cycle\n(residuals)",
-         x = "Sample size")
-#
-
-#
-# df[which(is.infinite(df$estimate)), "estimate"] <- 10000
-#
-# summary(survivalEstimates)
-#
-# ylim <- c(-200, 200)
-# xlim <- c(0, max(df$sampleSize)+10)
-# g4 <- ggplot(df, aes(x = sampleSize, y = estimate - trueFC300,
-#                      group = sampleSize)) +
-#                                     #colour = Species, order=as.numeric(Species))) +
-#     geom_boxplot(aes(fill = method)) +
-#     #stat_sum_df("mean_cl_boot", geom = "smooth", mapping = aes(group = sampleSize)) + ## "mean_cl_boot' being a
-#     #stat_summary(fun.y="sum", geom="line", size=3) +
-#    # ylim(ylim) +
-#     #xlim(xlim) +
-#     facet_grid(fireCycle ~ treatment, scales = "free") +
-#     #scale_colour_manual(values=cols) +
-#     #guides(fill = guide_legend(reverse = TRUE)) +
-#     labs(title = "Put title here",
-#          y = "Estimated - True fire cycle\n(residuals)",
-#          x = "Sample size")
-#
-# png(filename=paste("biomassSpp", i, "_", a, "_SubReg", sr, ".png", sep=""),
-#     width = 2400, height = 2400, units = "in", pointsize=72)
-#     print(g4 + theme_grey(base_size=72) +
-#               scale_x_continuous(breaks = breaks) +
-#               theme(axis.text.x = element_text(size=44, angle = 45, hjust = 1),
-#                     axis.text.y = element_text(size=48),
-#                     strip.text.x = element_text(size=40),
-#                     strip.text.y = element_text(size=60)))
-# dev.off()
-#
-#
-# }
