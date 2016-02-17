@@ -4,7 +4,7 @@
 rm(list=ls())
 ####################################################################
 ####################################################################
-#setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
+setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
 outputFolder <- paste(getwd(), "compiledOutputs", sep="/")
 wwd <- paste(getwd(), Sys.Date(), sep="/")
 dir.create(wwd)
@@ -28,15 +28,12 @@ tsfFinal <- get(load(paste(outputFolder, "tsfFinal.RData", sep="/")))
 sampleSize <- c(25, 50, 75, 94, 150, 250, 500)
 replicates <- unique(tsfFinal$replicate)
 resamplingEffort <- c(0.5, 1, 2)
-nBootstrap <- 10000/length(replicates)
+nBootstrap <- 1000
 
 ## shrinking table to a collection of sample of maximum sample size
 tsfSample <- tsfFinal %>%
-    filter(replicate %in% replicates) %>%
-    group_by(fireCycle, treatment, replicate)
-tsfSample <- sample_n(tsfSample, max(sampleSize))
-tsfSample <- ungroup(tsfSample)
-## creating
+    filter(replicate %in% replicates)
+## creating ID variable
 tsfSample <- mutate(tsfSample, ID = as.numeric(as.factor(paste(fireCycle, treatment, replicate))))
 
 ###
@@ -69,7 +66,7 @@ survivalBootstrap <- foreach(i = unique(tsfSample$ID), .combine="rbind") %do% {
         tsf <- tsf$tsfFinal
         tsf[tsf == 0] <- 0.1
         # transforming uncensored tsf sample into 'Surv' object
-        #tsfUncensored <- Surv(tsf, rep(1, length(tsf)))
+        tsfUncensored <- Surv(tsf, rep(1, length(tsf)))
         # applying censoring function
         tsf <- censFnc(tsf, 100, 300)
         #
@@ -77,17 +74,20 @@ survivalBootstrap <- foreach(i = unique(tsfSample$ID), .combine="rbind") %do% {
 
             tmp <- foreach(r = 1:nBootstrap, .combine="rbind",
                            .packages = c("survival")) %dopar% {#
-                # filtering by replicate
+                ### Bootstrap sampling
                 tsfIndex <- 1:nrow(tsf)
                 tsfIndex <- sample(tsfIndex, rs*max(tsfIndex), replace = TRUE)
                 tsfBoot <- tsf[tsfIndex]
-
+                tsfBootUncensored <- tsfUncensored[tsfIndex]
                 ### estimating FC from censored samples
                 cox <- coxFitFnc(tsfBoot)$cycle
                 weib <- weibFitFnc(tsfBoot)$cycle
                 exp <- expFitFnc(tsfBoot)$cycle
-                #
-                tmp <- data.frame(cox, weib, exp)
+                ### estimating FC from uncensored samples
+                coxUncensored <- coxFitFnc(tsfBootUncensored)$cycle
+                weibUncensored <- weibFitFnc(tsfBootUncensored)$cycle
+                expUncensored <- expFitFnc(tsfBootUncensored)$cycle
+                tmp <- data.frame(cox, weib, exp, coxUncensored, weibUncensored, expUncensored)
                 return(round(tmp, 1))
             }
 
@@ -98,7 +98,7 @@ survivalBootstrap <- foreach(i = unique(tsfSample$ID), .combine="rbind") %do% {
                               resamplingEffort = rs,
                               tmp)
             tmp <- melt(tmp, id.vars = c("fireCycle", "treatment", "replicate", "sampleSize", "resamplingEffort"),
-                        meas.vars = c("cox", "weib", "exp"),
+                        meas.vars = c("cox", "weib", "exp", "coxUncensored", "weibUncensored", "expUncensored"),
                         variable.name = "method",
                         value.name = "estimate")
             return(tmp)
