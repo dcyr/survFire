@@ -25,7 +25,6 @@ tsfFinal <- get(load(paste(outputFolder, "tsfFinal.RData", sep="/")))
 # the following design took 2h40min to run with 3 cores on my machine
 sampleSize <- c(10, 25, 50, 75, 94, 150, 250, 500)
 nTrials <- 400
-
 ###
 clusterN <- detectCores()-1  ### choose number of nodes to add to cluster.
 sysName <- Sys.info()["sysname"]
@@ -37,7 +36,6 @@ if (sysName=="Windows") {
 if (sysName=="Linux") {
     cl = makeCluster(clusterN)
 }
-
 
 registerDoSNOW(cl)
 t1 <- Sys.time()
