@@ -25,18 +25,18 @@ tsfFinal <- get(load(paste(outputFolder, "tsfFinal.RData", sep="/")))
 
 
 # the following design took XhXXmin to run with 3 cores on my machine
-sampleSize <- 94
-#sampleSize <- c(10, 25, 50, 75, 94, 150, 250, 500)
-nBootstrap <- 10
+sampleSize <- c(10, 25, 50, 75, 94, 150, 250, 500)
+replicates <- 1
+nBootstrap <- 10000
 
 ## shrinking table to a collection of sample of maximum sample size
 tsfSample <- tsfFinal %>%
+    filter(replicate %in% replicates) %>%
     group_by(fireCycle, treatment, replicate)
 tsfSample <- sample_n(tsfSample, max(sampleSize))
 tsfSample <- ungroup(tsfSample)
 ## creating
 tsfSample <- mutate(tsfSample, ID = as.numeric(as.factor(paste(fireCycle, treatment, replicate))))
-
 
 ###
 clusterN <- detectCores()-1  ### choose number of nodes to add to cluster.
@@ -107,5 +107,3 @@ t2 <- Sys.time()
 ##
 print(t2-t1)
 save(survivalBootstrap, file = "survivalBootstrap.RData")
-
-
