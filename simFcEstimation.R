@@ -59,7 +59,6 @@ survivalEstimates <- foreach(fc = unique(tsfFinal$fireCycle), .combine="rbind") 
                 tmp <- foreach(i = 1:nTrials, .combine="rbind",
                         .packages = c("survival")) %dopar%  {
 
-                    cox <-  weib <- exp <- coxUncensored <- weibUncensored <- expUncensored <- Inf
                     # sampling true tsf
                     tsf <- sample(trueTSF, ss)
                     tsf[tsf == 0] <- 0.1
