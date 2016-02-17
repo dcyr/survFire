@@ -27,6 +27,7 @@ tsfFinal <- get(load(paste(outputFolder, "tsfFinal.RData", sep="/")))
 # the following design took XhXXmin to run with 3 cores on my machine
 sampleSize <- c(10, 25, 50, 75, 94, 150, 250, 500)
 replicates <- 1
+resamplingEffort <- c(0.5, 1, 2)
 nBootstrap <- 10000
 
 ## shrinking table to a collection of sample of maximum sample size
@@ -72,29 +73,36 @@ survivalBootstrap <- foreach(i = unique(tsfSample$ID), .combine="rbind") %do% {
         # applying censoring function
         tsf <- censFnc(tsf, 100, 300)
         #
-        tmp <- foreach(r = 1:nBootstrap, .combine="rbind",
-                       .packages = c("survival")) %dopar% {#
-            # filtering by replicate
-            tsfBoot <- tsf[sample(1:nrow(tsf), replace = TRUE)]
+        tmp <- foreach(rs = resamplingEffort, .combine="rbind") %do% {#
 
-            ### estimating FC from censored samples
-            cox <- coxFitFnc(tsfBoot)$cycle
-            weib <- weibFitFnc(tsfBoot)$cycle
-            exp <- expFitFnc(tsfBoot)$cycle
-            #
-            tmp <- data.frame(cox, weib, exp)
-            return(round(tmp, 1))
+            tmp <- foreach(r = 1:nBootstrap, .combine="rbind",
+                           .packages = c("survival")) %dopar% {#
+                # filtering by replicate
+                tsfIndex <- 1:nrow(tsf)
+                tsfIndex <- sample(tsfIndex, rs*max(tsfIndex), replace = TRUE)
+                tsfBoot <- tsf[tsfIndex]
+
+                ### estimating FC from censored samples
+                cox <- coxFitFnc(tsfBoot)$cycle
+                weib <- weibFitFnc(tsfBoot)$cycle
+                exp <- expFitFnc(tsfBoot)$cycle
+                #
+                tmp <- data.frame(cox, weib, exp)
+                return(round(tmp, 1))
+            }
+
+            tmp <- data.frame(fireCycle = as.numeric(fc),
+                              treatment = treat,
+                              replicate = as.numeric(r),
+                              sampleSize = ss,
+                              resamplingEffort = rs,
+                              tmp)
+            tmp <- melt(tmp, id.vars = c("fireCycle", "treatment", "replicate", "sampleSize", "resamplingEffort"),
+                        meas.vars = c("cox", "weib", "exp"),
+                        variable.name = "method",
+                        value.name = "estimate")
+            return(tmp)
         }
-
-        tmp <- data.frame(fireCycle = as.numeric(fc),
-                          treatment = treat,
-                          replicate = as.numeric(r),
-                          sampleSize = ss,
-                          tmp)
-        tmp <- melt(tmp, id.vars = c("fireCycle", "treatment", "replicate", "sampleSize"),
-                    meas.vars = c("cox", "weib", "exp", "coxUncensored", "weibUncensored", "expUncensored"),
-                    variable.name = "method",
-                    value.name = "estimate")
         return(tmp)
     }
     return(tmp)
@@ -107,3 +115,4 @@ t2 <- Sys.time()
 ##
 print(t2-t1)
 save(survivalBootstrap, file = "survivalBootstrap.RData")
+
