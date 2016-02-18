@@ -33,6 +33,16 @@ require(zoo)
 ################################################################################
 ################################################################################
 
+
+################################################################################
+################################################################################
+######
+######      Memory-demanding steps to do once with clean workspace
+######
+################################################################################
+################################################################################
+
+
 ####################################################################
 ######  true fire cycle statistics computation
 output <- get(load(paste(outputFolder, "simOutputCompiled.RData", sep="/")))
@@ -107,12 +117,12 @@ require(RColorBrewer)
 ####################################################################
 ######  bootstrap estimates
 survivalBootstrap <- get(load(paste(outputFolder, "survivalBootstrap.RData", sep="/")))
-
 ################################################################################
 ################################################################################
 
 
-##### Filtering results that were deemed uninteresting through a trial and error process
+################################################################################
+#### Filtering results that were deemed uninteresting through a trial and error process
 ##### (Usually because it creates CI so wide they were useless)
 survivalBootstrap <- survivalBootstrap %>%
     #filter(propNonFinite > 0.995) %>%
@@ -130,8 +140,52 @@ survivalBootstrap <- survivalBootstrap %>%
 t1 <- Sys.time()
 survivalBootstrap <- merge(survivalBootstrap, trueFC)
 t2 <- Sys.time()
+save(survivalBootstrap, "survivalBootstrap.RData")
 
 
+################################################################################
+##### loading FC estimation obtained from simulated field sampling experiment
+survivalEstimates <- get(load(paste(outputFolder, "survivalEstimates.RData", sep ="/")))
+survivalEstimates$sampleSize <- as.numeric(survivalEstimates$sampleSize)
+################################################################################
+################################################################################
+
+
+##### Filtering results that were deemed uninteresting through a trial and error
+##### process (Usually because it creates CI so wide they're useless)
+survivalEstimates <- survivalEstimates %>%
+    #filter(propNonFinite > 0.995) %>%
+    filter(is.finite(estimate)) %>%
+    filter((fireCycle >= 1000) == F) %>%
+    filter((fireCycle >= 125 & sampleSize <= 10) == F) %>%
+    filter((fireCycle >= 500 & method == "weib") == F) %>%
+    filter((fireCycle >= 250 & sampleSize <= 25 & method == "weib") == F) %>%
+    filter((fireCycle >= 500 & sampleSize <= 25 &  treatment == "-0.5") == F)
+#     filter((sampleSize == 25 & fireCycle >= 1000) == F) %>%
+#     filter((method == "exp" & fireCycle >= 1000 & treatment == "-0.5") == F) %>%
+#     filter((sampleSize <= 94 & fireCycle >= 1000 & treatment == "-0.5") == F)
+
+### the following takes a while ...
+survivalEstimates <- merge(survivalEstimates, trueFC)
+save(survivalEstimates, file = "survivalEstimates.RData")
+
+
+################################################################################
+################################################################################
+######
+######      Confidence intervals coverage
+######
+require(ggplot2)
+#require(quantreg)
+require(RColorBrewer)
+################################################################################
+################################################################################
+
+####################################################################
+######  bootstrap estimates
+survivalBootstrap <- get(load(paste(outputFolder, "survivalBootstrap.RData", sep="/")))
+################################################################################
+################################################################################
 fc  <- 250
 
 # plot distribution
@@ -139,9 +193,6 @@ df <- survivalBootstrap %>%
     filter(resamplingEffort == 1) %>%
     #filter(treatment == 0) %>%
     filter(fireCycle == fc)
-
-#head(df)
-
 
 ciDensity <- ggplot(df, aes(x = estimate, colour = method)) +
     stat_density(geom="line",position="identity") +
@@ -291,7 +342,7 @@ survivalEstimates <- survivalEstimates %>%
 
 ### the following takes a while ...
 survivalEstimates <- merge(survivalEstimates, trueFC)
-
+save(survivalEstimates, file = "survivalEstimates.RData")
 
 # ################################################################################
 # ##### Boxplot - Residuals (Residuals by SampleSize, for each fire cycles and treatments)

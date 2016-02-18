@@ -4,7 +4,7 @@
 rm(list=ls())
 ####################################################################
 ####################################################################
-#setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
+setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
 outputFolder <- paste(getwd(), "compiledOutputs", sep="/")
 wwd <- paste(getwd(), Sys.Date(), sep="/")
 dir.create(wwd)
@@ -25,9 +25,9 @@ tsfFinal <- get(load(paste(outputFolder, "tsfFinal.RData", sep="/")))
 
 
 # the following design took XhXXmin to run with 3 cores on my machine
-sampleSize <- c(25, 50, 75, 94, 150, 250, 500)
-replicates <- unique(tsfFinal$replicate)
-resamplingEffort <- c(0.5, 1, 2)
+sampleSize <- c(50)#, 75, 94, 150, 250, 500)
+replicates <- 1#unique(tsfFinal$replicate)
+resamplingEffort <- 1#c(0.5, 1, 2)
 nBootstrap <- 1000
 
 ## shrinking table to a collection of sample of maximum sample size
