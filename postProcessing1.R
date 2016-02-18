@@ -120,10 +120,8 @@ survivalBootstrap <- survivalBootstrap %>%
 #     filter((sampleSize <= 94 & fireCycle >= 1000 & treatment == "-0.5") == F)
 
 ### the following takes a while ...
-t1 <- Sys.time()
 survivalBootstrap <- merge(survivalBootstrap, trueFC)
-t2 <- Sys.time()
-save(survivalBootstrap, "survivalBootstrap.RData")
+save(survivalBootstrap, file = "survivalBootstrap.RData")
 
 ################################################################################
 ##### loading FC estimation obtained from simulated field sampling experiment
