@@ -15,21 +15,22 @@ require(dplyr)
 require(zoo)
 ################################################################################
 ################################################################################
-# setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
+setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
 outputFolder <- paste(getwd(), "compiledOutputs", sep="/")
 wwd <- paste(getwd(), Sys.Date(), sep="/")
 dir.create(wwd)
 setwd(wwd)
 rm(wwd)
 
-### fetching total area from an output raster stack
-refRaster <- get(load("../outputs/simOutput_125_0.RData"))
-refRaster <- refRaster[[1]]$tsf[[1]]
-### removing 10-km edge (should check if that's coherent with upstream output compiling)
-e <- extent(refRaster, 11, nrow(refRaster)-10, 11, ncol(refRaster)-10)
-refRaster <- crop(refRaster, e)
-totalArea <- ncell(refRaster)
-totalArea <- ncell(refRaster) * prod(res(refRaster))/10000 ### total area in hectare
+# ### fetching total area from an output raster stack
+# refRaster <- get(load("../outputs/simOutput_125_0.RData"))
+# refRaster <- refRaster[[1]]$tsf[[1]]
+# ### removing 10-km edge (should check if that's coherent with upstream output compiling)
+# e <- extent(refRaster, 11, nrow(refRaster)-10, 11, ncol(refRaster)-10)
+# refRaster <- crop(refRaster, e)
+totalArea <- 1562500
+# totalArea <- ncell(refRaster)
+# totalArea <- ncell(refRaster) * prod(res(refRaster))/10000 ### total area in hectare
 
 
 
