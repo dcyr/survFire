@@ -96,7 +96,7 @@ rm(output)
 
 ####################################################################
 ######  bootstrap estimates
-survivalBootstrap <- get(load(paste(outputFolder, "survivalBootstrap.RData", sep="/")))
+survivalBootstrap <- get(load(paste(outputFolder, "survivalBootstrapFullDF.RData", sep="/")))
 ################################################################################
 ################################################################################
 
@@ -125,7 +125,7 @@ save(survivalBootstrap, "survivalBootstrap.RData")
 
 ################################################################################
 ##### loading FC estimation obtained from simulated field sampling experiment
-survivalEstimates <- get(load(paste(outputFolder, "survivalEstimates.RData", sep ="/")))
+survivalEstimates <- get(load(paste(outputFolder, "survivalEstimatesFullDF.RData", sep ="/")))
 survivalEstimates$sampleSize <- as.numeric(survivalEstimates$sampleSize)
 ################################################################################
 ################################################################################
