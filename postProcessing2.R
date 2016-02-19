@@ -4,6 +4,7 @@ rm(list=ls())
 require(dplyr)
 require(raster)
 require(reshape2)
+require(zoo)
 ################################################################################
 ################################################################################
 setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
@@ -13,96 +14,6 @@ dir.create(wwd)
 setwd(wwd)
 rm(wwd)
 
-### fetching total area from an output raster stack
-refRaster <- get(load("../outputs/simOutput_125_0.RData"))
-refRaster <- refRaster[[1]]$tsf[[1]]
-### removing 10-km edge (should check if that's coherent with upstream output compiling)
-e <- extent(refRaster, 11, nrow(refRaster)-10, 11, ncol(refRaster)-10)
-refRaster <- crop(refRaster, e)
-totalArea <- ncell(refRaster)
-totalArea <- ncell(refRaster) * prod(res(refRaster))/10000 ### total area in hectare
-
-
-################################################################################
-################################################################################
-######
-######      300-yrs simulations with replicates
-######
-require(dplyr)
-require(zoo)
-################################################################################
-################################################################################
-
-
-################################################################################
-################################################################################
-######
-######      Memory-demanding steps to do once with clean workspace
-######
-################################################################################
-################################################################################
-
-
-####################################################################
-######  true fire cycle statistics computation
-output <- get(load(paste(outputFolder, "simOutputCompiled.RData", sep="/")))
-####################################################################
-output <- output %>%
-    mutate(id = paste0(fireCycle, replicate, treatment))
-output$treatment <- as.factor(output$treatment)
-### ordering (following loop depends or ordered time series)
-output <- output %>%
-    arrange(year, replicate, treatment, fireCycle)
-
-trueFCNames <- c("trueFC50", "trueFC150", "trueFC300")
-output[, trueFCNames] <- NA
-
-trueFC <- list()
-for (fc in unique(output$fireCycle)) {
-    trueFC[[fc]] <- list()
-    for (treat in unique(output$treatment)) {
-        trueFC[[fc]][[treat]] <- list()
-        for (r in unique(output$replicate)) {
-            trueFC[[fc]][[treat]][[r]] <- output %>%
-                filter(fireCycle == fc,
-                       treatment == treat,
-                       replicate == r)
-            year <- trueFC[[fc]][[treat]][[r]]$year
-            aab <-trueFC[[fc]][[treat]][[r]]$areaBurned_ha
-
-
-            trueFC[[fc]][[treat]][[r]][,"trueFC50"] <- totalArea/rollmean(aab, 50, align = "right", fill = NA)
-            trueFC[[fc]][[treat]][[r]][,"trueFC150"] <- totalArea/rollmean(aab, 150, align = "right", fill = NA)
-            trueFC[[fc]][[treat]][[r]][,"trueFC300"] <- totalArea/rollmean(aab, 300, align = "right", fill = NA)
-        }
-    }
-
-}
-### Unlisting everything (a "foreach" construct in the previous loop could avoid that)
-tmp <- list()
-for (fc in unique(output$fireCycle)) {
-    tmp2 <- list()
-    for (treat in unique(output$treatment)) {
-        tmp2[[treat]] <- do.call("rbind", trueFC[[fc]][[treat]])
-    }
-    tmp[[fc]] <- do.call("rbind", tmp2)
-}
-trueFC <-  do.call("rbind", tmp)
-
-trueFC <- merge(trueFC, trueFC %>%
-                    group_by(fireCycle, treatment, replicate) %>%
-                    summarise(meanAAB = mean(areaBurned_ha)))
-
-### Keep only complete cases (year == 300)
-trueFC <- trueFC[complete.cases(trueFC),]
-### further house cleaning
-rownames(trueFC) <-  1:nrow(trueFC)
-trueFC <- trueFC[,-which(colnames(trueFC) %in% c("id", "areaBurned_ha"))]
-trueFC <- trueFC %>%
-    arrange(fireCycle, treatment, replicate)
-###
-rm(output)
-
 ################################################################################
 ################################################################################
 ######
@@ -114,113 +25,151 @@ require(RColorBrewer)
 ################################################################################
 ################################################################################
 
+
 ####################################################################
-######  bootstrap estimates
+######  loading bootstrap estimates
 survivalBootstrap <- get(load(paste(outputFolder, "survivalBootstrap.RData", sep="/")))
-################################################################################
-################################################################################
-
-
-################################################################################
-#### Filtering results that were deemed uninteresting through a trial and error process
-##### (Usually because it creates CI so wide they were useless)
-survivalBootstrap <- survivalBootstrap %>%
-    #filter(propNonFinite > 0.995) %>%
-    filter(is.finite(estimate)) %>%
-    filter((fireCycle >= 1000) == F) %>%
-    filter((fireCycle >= 125 & sampleSize <= 10) == F) %>%
-    filter((fireCycle >= 500 & method == "weib") == F) %>%
-    filter((fireCycle >= 250 & sampleSize <= 25 & method == "weib") == F) %>%
-    filter((fireCycle >= 500 & sampleSize <= 25 &  treatment == "-0.5") == F)
-#     filter((sampleSize == 25 & fireCycle >= 1000) == F) %>%
-#     filter((method == "exp" & fireCycle >= 1000 & treatment == "-0.5") == F) %>%
-#     filter((sampleSize <= 94 & fireCycle >= 1000 & treatment == "-0.5") == F)
-
-### the following takes a while ...
-t1 <- Sys.time()
-survivalBootstrap <- merge(survivalBootstrap, trueFC)
-t2 <- Sys.time()
-save(survivalBootstrap, "survivalBootstrap.RData")
-
-
-################################################################################
-##### loading FC estimation obtained from simulated field sampling experiment
+survivalBootstrap <- filter(survivalBootstrap, method %in% c("cox", "weib", "exp"))
+survivalBootstrap <- droplevels(survivalBootstrap)
+######  loading bootstrap estimates
 survivalEstimates <- get(load(paste(outputFolder, "survivalEstimates.RData", sep ="/")))
-survivalEstimates$sampleSize <- as.numeric(survivalEstimates$sampleSize)
-################################################################################
-################################################################################
-
-
-##### Filtering results that were deemed uninteresting through a trial and error
-##### process (Usually because it creates CI so wide they're useless)
 survivalEstimates <- survivalEstimates %>%
-    #filter(propNonFinite > 0.995) %>%
-    filter(is.finite(estimate)) %>%
-    filter((fireCycle >= 1000) == F) %>%
-    filter((fireCycle >= 125 & sampleSize <= 10) == F) %>%
-    filter((fireCycle >= 500 & method == "weib") == F) %>%
-    filter((fireCycle >= 250 & sampleSize <= 25 & method == "weib") == F) %>%
-    filter((fireCycle >= 500 & sampleSize <= 25 &  treatment == "-0.5") == F)
-#     filter((sampleSize == 25 & fireCycle >= 1000) == F) %>%
-#     filter((method == "exp" & fireCycle >= 1000 & treatment == "-0.5") == F) %>%
-#     filter((sampleSize <= 94 & fireCycle >= 1000 & treatment == "-0.5") == F)
-
-### the following takes a while ...
-survivalEstimates <- merge(survivalEstimates, trueFC)
-save(survivalEstimates, file = "survivalEstimates.RData")
-
-
-################################################################################
-################################################################################
-######
-######      Confidence intervals coverage
-######
-require(ggplot2)
-#require(quantreg)
-require(RColorBrewer)
+    filter(method %in% c("cox", "weib", "exp")) %>%
+    filter(sampleSize >= 25)
+survivalEstimates <- droplevels(survivalEstimates)
 ################################################################################
 ################################################################################
 
-####################################################################
-######  bootstrap estimates
-survivalBootstrap <- get(load(paste(outputFolder, "survivalBootstrap.RData", sep="/")))
-################################################################################
-################################################################################
-fc  <- 250
 
-# plot distribution
-df <- survivalBootstrap %>%
-    filter(resamplingEffort == 1) %>%
-    #filter(treatment == 0) %>%
-    filter(fireCycle == fc)
+### defining colors, renaming / reordering levels for nicer plotting
+mColors <- c("seagreen4", "goldenrod2", "indianred4")
+# fireCycle
+fcLevels <- unique(survivalEstimates$fireCycle)
+fcLevels <- fcLevels[order(fcLevels)]
+fcLevels <- paste0(fcLevels, "-yrs. FC")
+survivalEstimates$fireCycle <- factor(paste0(survivalEstimates$fireCycle, "-yrs. FC"), levels = fcLevels)
+survivalBootstrap$fireCycle <- factor(paste0(survivalBootstrap$fireCycle, "-yrs. FC"), levels = fcLevels)
+# treatment
+tLevels <- c("Decreasing fire activity",
+             "Constant fire activity",
+             "Increasing fire activity")
+survivalEstimates$treatment <- as.factor(survivalEstimates$treatment)
+survivalBootstrap$treatment <- as.factor(survivalBootstrap$treatment)
+levels(survivalEstimates$treatment) <- levels(survivalBootstrap$treatment) <- tLevels
+survivalEstimates$treatment <- factor(survivalEstimates$treatment, levels = rev(tLevels))
+survivalBootstrap$treatment <- factor(survivalBootstrap$treatment, levels = rev(tLevels))
 
-ciDensity <- ggplot(df, aes(x = estimate, colour = method)) +
-    stat_density(geom="line",position="identity") +
-    xlim(0, 3*fc) +
-    facet_grid(sampleSize ~ treatment, scales = "free_y") +
-    geom_vline(xintercept = fc, colour="grey", linetype = 3, size = 0.75) +
-    labs(title = paste0("Bootstrap estimates"),
+# resamplinEffort
+reLevels <- c("50%",
+              "100%",
+              "200%")
+survivalBootstrap$resamplingEffort <- as.factor(survivalBootstrap$resamplingEffort)
+levels(survivalBootstrap$resamplingEffort) <- reLevels
+
+# sampleSize
+ssLevels <- unique(survivalEstimates$sampleSize)
+ssLevels <- ssLevels[order(ssLevels)]
+ssLevels <- paste("sample size:", ssLevels)
+survivalEstimates$sampleSize <- factor(paste("sample size:", survivalEstimates$sampleSize), levels = ssLevels)
+survivalBootstrap$sampleSize <- factor(paste("sample size:", survivalBootstrap$sampleSize), levels = ssLevels)
+
+
+# method
+levels(survivalEstimates$method) <-
+    levels(survivalBootstrap$method) <- c("Cox", "Weibull", "Exponential")
+
+### plot distribution (suppl. material)
+for (fc in unique(survivalBootstrap$fireCycle)) {
+    fcNum <- as.numeric(gsub("-yrs. FC", "", fc))
+    # plot distribution
+    df <- survivalBootstrap %>%
+        #filter(resamplingEffort == 1) %>%
+        #filter(treatment == 0) %>%
+        filter(fireCycle == fc) %>%
+        filter(method %in% c("Cox", "Weibull", "Exponential")) %>%
+        #filter(method %in% c("coxUncensored", "weibUncensored", "expUncensored")) %>%
+        mutate(residual = estimate - trueFC300)
+
+    df <- droplevels(df)
+
+    ### residual summary (to plot mean values)
+    residualsSummary <- df %>%
+        group_by(fireCycle, treatment, sampleSize, method) %>%
+        summarise(meanResidual = round(mean(residual),1))
+
+    ### Plot
+    ciDensity <- ggplot(df, aes(x = residual, colour = method)) +
+        geom_vline(xintercept = 0, colour="grey", linetype = 3, size = 0.75) +
+        stat_density(geom="line", position="identity", size = 1) +
+        xlim(-fcNum, fcNum) +
+        facet_grid(sampleSize ~ treatment, scales = "free_y") +
+
+        geom_vline(data = residualsSummary,  aes(xintercept = meanResidual, colour = method),
+                   linetype = 3, size = 1) +
+        scale_colour_manual(values = mColors) +
+        #scale_colour_brewer(type = "qual") +
+        labs(title = paste0("Distribution of bootstrap resampled fire cycle estimates\n(residuals; ", fcNum, "; n = 10000)"),
              y = "Density\n",
-             x = "\nYears")
+             x = "Residuals\nEstimated FC - True value (years)")
+
+    ### Printing plot
+    png(filename = paste0("coverageDensity_", fcNum, ".png"),
+        width = 10, height = 10, units = "in", res = 600, pointsize=10)
+
+        print(ciDensity +
+                  theme_bw() +
+                  theme(legend.position="top", legend.direction="horizontal",
+                        axis.text.x = element_text(angle = 45, hjust = 1),
+                        strip.text.y = element_text(size = 8))) #, palette = 1, direction = 1)
+
+    dev.off()
+}
 
 
-png(filename = paste0("CiDensity_", fc, ".png"),
+### computing bootstrap 95CI
+coverageDf <- survivalBootstrap %>%
+    mutate(residual = estimate - trueFC300) %>%
+    group_by(fireCycle, treatment, sampleSize, resamplingEffort, method) %>%
+    summarise(ll = quantile(residual, 0.025),
+              ul = quantile(residual, 0.975))
+
+rm(survivalBootstrap)
+### computing coverage rate
+coverageDf <- merge(survivalEstimates, coverageDf)
+#
+coverageSummary <- coverageDf %>%
+    mutate(residual = estimate - trueFC300) %>%
+    group_by(fireCycle, treatment, sampleSize, method, resamplingEffort) %>%
+    summarise(coverage = sum(ll < residual & ul > residual)/n())
+
+# converting sampleSize back to numerical values
+coverageSummary$sampleSize <- as.numeric(gsub("sample size: ", "", coverageSummary$sampleSize))
+
+### plotting
+coverageSummaryPlot <- ggplot(coverageSummary, aes(x = sampleSize, y = coverage, colour = method, linetype = resamplingEffort)) +
+    facet_grid(fireCycle ~ treatment) +
+    geom_hline(yintercept = 0.95, linetype = "dashed", size = 0.5, col = "grey") +
+    geom_line() +
+    ylim(0.75, 1) +
+    scale_colour_manual(values = c("seagreen4", "goldenrod2", "indianred4")) +
+    #?scale_colour_brewer(type = "qual") +
+    scale_linetype_manual(values=c("dotted", "solid", "twodash")) +
+    labs(title = paste0("Coverage rate of bootstrap 95% confidence intervals\n(10000 resampling)\n"),
+         y = "Coverage rate\n",
+         x = "\nSample size")
+
+
+### printing plot
+png(filename = paste0("coverage.png"),
     width = 10, height = 10, units = "in", res = 600, pointsize=10)
 
-    print(ciDensity +
+    print(coverageSummaryPlot +
               theme_bw() +
-              theme(legend.position="top", legend.direction="horizontal",
-                    axis.text.x = element_text(angle = 45, hjust = 1)))
+              theme(axis.text.x = element_text(angle = 45, hjust = 1),
+                    #legend.position="right", legend.direction="horizontal",
+                    strip.text.y = element_text(size = 10))) #, palette = 1, direction = 1)
 
 dev.off()
-
-
-# merge with trueFC
-
-# compute coverage
-
-# plot coverage
-
 
 
 # ################################################################################
@@ -314,35 +263,16 @@ dev.off()
 # ################################################################################
 # ################################################################################
 
+# ################################################################################
+# ################################################################################
+# ######
+# ######      Plotting 300-yrs simulations residuals
+# ######
+# ##### loading FC estimation obtained from simulated field sampling experiment
+# survivalEstimates <- get(load(paste(outputFolder, "survivalEstimates.RData", sep ="/")))
+# survivalEstimates$sampleSize <- as.numeric(survivalEstimates$sampleSize)
+# ################################################################################
 ################################################################################
-################################################################################
-######
-######      Plotting 300-yrs simulations residuals
-######
-##### loading FC estimation obtained from simulated field sampling experiment
-survivalEstimates <- get(load(paste(outputFolder, "survivalEstimates.RData", sep ="/")))
-survivalEstimates$sampleSize <- as.numeric(survivalEstimates$sampleSize)
-################################################################################
-################################################################################
-
-
-##### Filtering results that were deemed uninteresting through a trial and error process
-##### (Usually because it creates CI so wide they were useless)
-survivalEstimates <- survivalEstimates %>%
-    #filter(propNonFinite > 0.995) %>%
-    filter(is.finite(estimate)) %>%
-    filter((fireCycle >= 1000) == F) %>%
-    filter((fireCycle >= 125 & sampleSize <= 10) == F) %>%
-    filter((fireCycle >= 500 & method == "weib") == F) %>%
-    filter((fireCycle >= 250 & sampleSize <= 25 & method == "weib") == F) %>%
-    filter((fireCycle >= 500 & sampleSize <= 25 &  treatment == "-0.5") == F)
-#     filter((sampleSize == 25 & fireCycle >= 1000) == F) %>%
-#     filter((method == "exp" & fireCycle >= 1000 & treatment == "-0.5") == F) %>%
-#     filter((sampleSize <= 94 & fireCycle >= 1000 & treatment == "-0.5") == F)
-
-### the following takes a while ...
-survivalEstimates <- merge(survivalEstimates, trueFC)
-save(survivalEstimates, file = "survivalEstimates.RData")
 
 # ################################################################################
 # ##### Boxplot - Residuals (Residuals by SampleSize, for each fire cycles and treatments)
