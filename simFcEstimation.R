@@ -23,8 +23,8 @@ source("../scripts/fcEstSurvFnc.R")
 ############################################
 tsfFinal <- get(load(paste(outputFolder, "tsfFinal.RData", sep="/")))
 # the following design took 2h40min to run with 3 cores on my machine
-sampleSize <- c(10, 25, 50, 75, 94, 150, 250, 500)
-nTrials <- 400
+sampleSize <- c(25, 50, 75, 94, 150, 250, 500)
+nTrials <- 100
 ###
 clusterN <- detectCores()-1  ### choose number of nodes to add to cluster.
 sysName <- Sys.info()["sysname"]

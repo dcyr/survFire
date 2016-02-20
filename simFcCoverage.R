@@ -25,10 +25,10 @@ tsfFinal <- get(load(paste(outputFolder, "tsfFinal.RData", sep="/")))
 
 
 # the following design took XhXXmin to run with 3 cores on my machine
-sampleSize <- c(50)#, 75, 94, 150, 250, 500)
-replicates <- 1#unique(tsfFinal$replicate)
-resamplingEffort <- 1#c(0.5, 1, 2)
-nBootstrap <- 1000
+sampleSize <- c(25, 50, 75, 94, 150, 250, 500)
+replicates <- unique(tsfFinal$replicate)
+resamplingEffort <- c(0.5, 1, 2)
+nBootstrap <- 100
 
 ## shrinking table to a collection of sample of maximum sample size
 tsfSample <- tsfFinal %>%
@@ -107,8 +107,6 @@ survivalBootstrap <- foreach(i = unique(tsfSample$ID), .combine="rbind") %do% {
     }
     return(tmp)
 }
-
-
 
 stopCluster(cl)
 t2 <- Sys.time()

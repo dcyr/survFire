@@ -4,7 +4,7 @@
 rm(list=ls())
 ####################################################################
 ####################################################################
-setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
+# setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
 outputFolder <- paste(getwd(), "outputs", sep="/")
 wwd <- paste(getwd(), Sys.Date(), sep="/")
 dir.create(wwd)
@@ -22,7 +22,7 @@ rm(wwd)
 ######      compiling simulation outputs
 ######
 ## Uncomment the following line if compiling 2000-yrs simulations outputs
-outputFolder <- paste(outputFolder, "2000YrsSims", sep="/")
+# outputFolder <- paste(outputFolder, "2000YrsSims", sep="/")
 ####################################################################
 ####################################################################
 
