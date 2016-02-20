@@ -46,30 +46,37 @@ fireSizeFit <- fitdistr(fireSizeObs, "lognormal")
 source("../scripts/simFnc.R")
 ####################################################################
 ####################################################################
-nRep <- 1
+nRep <- 100
+simDuration <- 300
+fireCycles <- c(62.5, 125, 250, 500)
+corrPAAB <- c(-0.5, 0, 0.5)
 require(doSNOW)
-clusterN <- 1  ### choose number of nodes to add to cluster.
+require(parallel)
+
+clusterN <-  detectCores() - 1  ### choose number of nodes to add to cluster.
 #######
 cl = makeCluster(clusterN)
 registerDoSNOW(cl)
-for (fc in c(62.5, 125, 250, 500, 1000)) {
-    for (corr in c(0)) {
-        #### initial landscape with tsf == 0
-        initialLandscape[] <- 1
+for (fc in fireCycles) {
+    for (corr in corrPAAB) {
+        #### initial landscape with tsf == 1
+        # initialLandscape[] <- 1
         #### or initial landscape at equilibrium according to simulated fire cycle
-        #initialLandscape[] <- round(rexp(ncell(initialLandscape), rate = 1/fc))
-        #initialLandscape[initialLandscape == 1] <- fc # removing zeros, remplace by fc
+        initialLandscape[] <- round(rexp(ncell(initialLandscape), rate = 1/fc))
+        initialLandscape[initialLandscape == 0] <- fc # removing zeros, remplace by fc
 
         ##
+        t1 <- Sys.time()
         output <- foreach(i = 1:nRep) %dopar%  {
-            output <- sim(initialLandscape, simDuration = 2000,
+            output <- sim(initialLandscape, simDuration = simDuration,
                           fireCycle = fc, fireSizeFit = fireSizeFit, corr = corr)
             return(output)
         }
+        t2 <- Sys.time()
+        print(paste(fc, corr, round(t2-t1, 1), "sec"))
         save(output, file = paste0("simOutput_", fc, "_", corr, ".RData"))
         rm(output)
     }
-
 }
 stopCluster(cl)
 #######

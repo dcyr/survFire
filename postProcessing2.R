@@ -28,330 +28,303 @@ require(RColorBrewer)
 
 ####################################################################
 ######  loading bootstrap estimates
-survivalBootstrap <- get(load(paste(outputFolder, "survivalBootstrap.RData", sep="/")))
-survivalBootstrap <- filter(survivalBootstrap, method %in% c("cox", "weib", "exp"))
-survivalBootstrap <- droplevels(survivalBootstrap)
-######  loading bootstrap estimates
 survivalEstimates <- get(load(paste(outputFolder, "survivalEstimates.RData", sep ="/")))
 survivalEstimates <- survivalEstimates %>%
     filter(method %in% c("cox", "weib", "exp")) %>%
     filter(sampleSize >= 25)
 survivalEstimates <- droplevels(survivalEstimates)
 ################################################################################
-################################################################################
 
-
-### defining colors, renaming / reordering levels for nicer plotting
-mColors <- c("seagreen4", "goldenrod2", "indianred4")
-# fireCycle
-fcLevels <- unique(survivalEstimates$fireCycle)
-fcLevels <- fcLevels[order(fcLevels)]
-fcLevels <- paste0(fcLevels, "-yrs. FC")
-survivalEstimates$fireCycle <- factor(paste0(survivalEstimates$fireCycle, "-yrs. FC"), levels = fcLevels)
-survivalBootstrap$fireCycle <- factor(paste0(survivalBootstrap$fireCycle, "-yrs. FC"), levels = fcLevels)
-# treatment
-tLevels <- c("Decreasing fire activity",
-             "Constant fire activity",
-             "Increasing fire activity")
-survivalEstimates$treatment <- as.factor(survivalEstimates$treatment)
-survivalBootstrap$treatment <- as.factor(survivalBootstrap$treatment)
-levels(survivalEstimates$treatment) <- levels(survivalBootstrap$treatment) <- tLevels
-survivalEstimates$treatment <- factor(survivalEstimates$treatment, levels = rev(tLevels))
-survivalBootstrap$treatment <- factor(survivalBootstrap$treatment, levels = rev(tLevels))
-
-# resamplinEffort
-reLevels <- c("50%",
-              "100%",
-              "200%")
-survivalBootstrap$resamplingEffort <- as.factor(survivalBootstrap$resamplingEffort)
-levels(survivalBootstrap$resamplingEffort) <- reLevels
-
-# sampleSize
-ssLevels <- unique(survivalEstimates$sampleSize)
-ssLevels <- ssLevels[order(ssLevels)]
-ssLevels <- paste("sample size:", ssLevels)
-survivalEstimates$sampleSize <- factor(paste("sample size:", survivalEstimates$sampleSize), levels = ssLevels)
-survivalBootstrap$sampleSize <- factor(paste("sample size:", survivalBootstrap$sampleSize), levels = ssLevels)
-
-
-# method
-levels(survivalEstimates$method) <-
-    levels(survivalBootstrap$method) <- c("Cox", "Weibull", "Exponential")
-
-### plot distribution (suppl. material)
-for (fc in unique(survivalBootstrap$fireCycle)) {
-    fcNum <- as.numeric(gsub("-yrs. FC", "", fc))
-    # plot distribution
-    df <- survivalBootstrap %>%
-        #filter(resamplingEffort == 1) %>%
-        #filter(treatment == 0) %>%
-        filter(fireCycle == fc) %>%
-        filter(method %in% c("Cox", "Weibull", "Exponential")) %>%
-        #filter(method %in% c("coxUncensored", "weibUncensored", "expUncensored")) %>%
-        mutate(residual = estimate - trueFC300)
-
-    df <- droplevels(df)
-
-    ### residual summary (to plot mean values)
-    residualsSummary <- df %>%
-        group_by(fireCycle, treatment, sampleSize, method) %>%
-        summarise(meanResidual = round(mean(residual),1))
-
-    ### Plot
-    ciDensity <- ggplot(df, aes(x = residual, colour = method)) +
-        geom_vline(xintercept = 0, colour="grey", linetype = 3, size = 0.75) +
-        stat_density(geom="line", position="identity", size = 1) +
-        xlim(-fcNum, fcNum) +
-        facet_grid(sampleSize ~ treatment, scales = "free_y") +
-
-        geom_vline(data = residualsSummary,  aes(xintercept = meanResidual, colour = method),
-                   linetype = 3, size = 1) +
-        scale_colour_manual(values = mColors) +
-        #scale_colour_brewer(type = "qual") +
-        labs(title = paste0("Distribution of bootstrap resampled fire cycle estimates\n(residuals; ", fcNum, "; n = 10000)"),
-             y = "Density\n",
-             x = "Residuals\nEstimated FC - True value (years)")
-
-    ### Printing plot
-    png(filename = paste0("coverageDensity_", fcNum, ".png"),
-        width = 10, height = 10, units = "in", res = 600, pointsize=10)
-
-        print(ciDensity +
-                  theme_bw() +
-                  theme(legend.position="top", legend.direction="horizontal",
-                        axis.text.x = element_text(angle = 45, hjust = 1),
-                        strip.text.y = element_text(size = 8))) #, palette = 1, direction = 1)
-
-    dev.off()
-}
-
-
-### computing bootstrap 95CI
-coverageDf <- survivalBootstrap %>%
-    mutate(residual = estimate - trueFC300) %>%
-    group_by(fireCycle, treatment, sampleSize, resamplingEffort, method) %>%
-    summarise(ll = quantile(residual, 0.025),
-              ul = quantile(residual, 0.975))
-
-rm(survivalBootstrap)
-### computing coverage rate
-coverageDf <- merge(survivalEstimates, coverageDf)
+# ################################################################################
+# ######  loading bootstrap estimates
+# survivalBootstrap <- get(load(paste(outputFolder, "survivalBootstrap.RData", sep="/")))
+# survivalBootstrap <- filter(survivalBootstrap, method %in% c("cox", "weib", "exp"))
+# survivalBootstrap <- droplevels(survivalBootstrap)
 #
-coverageSummary <- coverageDf %>%
-    mutate(residual = estimate - trueFC300) %>%
-    group_by(fireCycle, treatment, sampleSize, method, resamplingEffort) %>%
-    summarise(coverage = sum(ll < residual & ul > residual)/n())
-
-# converting sampleSize back to numerical values
-coverageSummary$sampleSize <- as.numeric(gsub("sample size: ", "", coverageSummary$sampleSize))
-
-### plotting
-coverageSummaryPlot <- ggplot(coverageSummary, aes(x = sampleSize, y = coverage, colour = method, linetype = resamplingEffort)) +
-    facet_grid(fireCycle ~ treatment) +
-    geom_hline(yintercept = 0.95, linetype = "dashed", size = 0.5, col = "grey") +
-    geom_line() +
-    ylim(0.75, 1) +
-    scale_colour_manual(values = c("seagreen4", "goldenrod2", "indianred4")) +
-    #?scale_colour_brewer(type = "qual") +
-    scale_linetype_manual(values=c("dotted", "solid", "twodash")) +
-    labs(title = paste0("Coverage rate of bootstrap 95% confidence intervals\n(10000 resampling)\n"),
-         y = "Coverage rate\n",
-         x = "\nSample size")
-
-
-### printing plot
-png(filename = paste0("coverage.png"),
-    width = 10, height = 10, units = "in", res = 600, pointsize=10)
-
-    print(coverageSummaryPlot +
-              theme_bw() +
-              theme(axis.text.x = element_text(angle = 45, hjust = 1),
-                    #legend.position="right", legend.direction="horizontal",
-                    strip.text.y = element_text(size = 10))) #, palette = 1, direction = 1)
-
-dev.off()
-
-
-# ################################################################################
-# ################################################################################
-
-
-# ################################################################################
-# ################################################################################
-# ######
-# ######      Plotting 300-yrs simulations results
-# ######
-# require(ggplot2)
-# require(quantreg)
-# require(RColorBrewer)
-# require(dichromat) ### for 'rollmean'
-# ################################################################################
-# ################################################################################
 #
-# ###
-# trueFCSummary <- trueFC %>%
-#     group_by(fireCycle, treatment) %>%
-#     summarise(meanTSF = round(mean(meanTSF),1),
-#               mean50 = round(mean(trueFC50), 1),
-#               mean150 = round(mean(trueFC150), 1),
-#               mean300 = round(mean(trueFC300),1))
-# trueFCSummary <- trueFCSummary %>%
-#     filter(fireCycle <= 500)
-# trueFCSummary <- droplevels(trueFCSummary)
-#
-# ###
-# df <- melt(trueFC, id.vars = c("fireCycle", "treatment", "replicate"),
-#             measure.vars = c("trueFC50", "trueFC150", "trueFC300", "meanTSF"))
-# df <- df %>%
-#     filter(variable != "trueFC150") %>%
-#     filter(fireCycle <= 500)
-# df <- droplevels(df)
-#
-# ### renaming / reordering levels for nicer plotting
+# ### defining colors, renaming / reordering levels for nicer plotting
+# mColors <- c("seagreen4", "goldenrod2", "indianred4")
 # # fireCycle
-# fcLevels <- unique(paste0(df$fireCycle, "-yrs. FC"))
-# df$fireCycle <- factor(paste0(df$fireCycle, "-yrs. FC"), levels = fcLevels)
-# trueFCSummary$fireCycle <- factor(paste0(trueFCSummary$fireCycle, "-yrs. FC"), levels = fcLevels)
+# fcLevels <- unique(survivalEstimates$fireCycle)
+# fcLevels <- fcLevels[order(fcLevels)]
+# fcLevels <- paste0(fcLevels, "-yrs. FC")
+# survivalEstimates$fireCycle <- factor(paste0(survivalEstimates$fireCycle, "-yrs. FC"), levels = fcLevels)
+# survivalBootstrap$fireCycle <- factor(paste0(survivalBootstrap$fireCycle, "-yrs. FC"), levels = fcLevels)
 # # treatment
 # tLevels <- c("Decreasing fire activity",
 #              "Constant fire activity",
 #              "Increasing fire activity")
-# levels(df$treatment) <- tLevels
-# df$treatment <- factor(df$treatment, levels = rev(tLevels))
-# levels(trueFCSummary$treatment) <- tLevels
+# survivalEstimates$treatment <- as.factor(survivalEstimates$treatment)
+# survivalBootstrap$treatment <- as.factor(survivalBootstrap$treatment)
+# levels(survivalEstimates$treatment) <- levels(survivalBootstrap$treatment) <- tLevels
+# survivalEstimates$treatment <- factor(survivalEstimates$treatment, levels = rev(tLevels))
+# survivalBootstrap$treatment <- factor(survivalBootstrap$treatment, levels = rev(tLevels))
+#
+# # resamplinEffort
+# reLevels <- c("50%",
+#               "100%",
+#               "200%")
+# survivalBootstrap$resamplingEffort <- as.factor(survivalBootstrap$resamplingEffort)
+# levels(survivalBootstrap$resamplingEffort) <- reLevels
+#
+# # sampleSize
+# ssLevels <- unique(survivalEstimates$sampleSize)
+# ssLevels <- ssLevels[order(ssLevels)]
+# ssLevels <- paste("sample size:", ssLevels)
+# survivalEstimates$sampleSize <- factor(paste("sample size:", survivalEstimates$sampleSize), levels = ssLevels)
+# survivalBootstrap$sampleSize <- factor(paste("sample size:", survivalBootstrap$sampleSize), levels = ssLevels)
 #
 #
-# ###
-# df$variable <- factor(df$variable, levels = c("meanTSF", "trueFC300", "trueFC50"))
-# df$variable <- factor(as.numeric(df$variable))
-# levels(df$variable) <- c("Final mean TSF  ",
-#                           "True FC (entire simulation)  ",
-#                           "True FC (last 50 years)  ")
+# # method
+# levels(survivalEstimates$method) <-
+#     levels(survivalBootstrap$method) <- c("Cox", "Weibull", "Exponential")
+#
+# ### plot distribution (suppl. material)
+# for (fc in unique(survivalBootstrap$fireCycle)) {
+#     fcNum <- as.numeric(gsub("-yrs. FC", "", fc))
+#     # plot distribution
+#     df <- survivalBootstrap %>%
+#         #filter(resamplingEffort == 1) %>%
+#         #filter(treatment == 0) %>%
+#         filter(fireCycle == fc) %>%
+#         filter(method %in% c("Cox", "Weibull", "Exponential")) %>%
+#         #filter(method %in% c("coxUncensored", "weibUncensored", "expUncensored")) %>%
+#         mutate(residual = estimate - trueFC300)
+#
+#     df <- droplevels(df)
+#
+#     ### residual summary (to plot mean values)
+#     residualsSummary <- df %>%
+#         group_by(fireCycle, treatment, sampleSize, method) %>%
+#         summarise(meanResidual = round(mean(residual),1))
+#
+#     ### Plot
+#     ciDensity <- ggplot(df, aes(x = residual, colour = method)) +
+#         geom_vline(xintercept = 0, colour="grey", linetype = 3, size = 0.75) +
+#         stat_density(geom="line", position="identity", size = 1) +
+#         xlim(-fcNum, fcNum) +
+#         facet_grid(sampleSize ~ treatment, scales = "free_y") +
+#
+#         geom_vline(data = residualsSummary,  aes(xintercept = meanResidual, colour = method),
+#                    linetype = 3, size = 1) +
+#         scale_colour_manual(values = mColors) +
+#         #scale_colour_brewer(type = "qual") +
+#         labs(title = paste0("Distribution of bootstrap resampled fire cycle estimates\n(residuals; ", fcNum, "; n = 10000)"),
+#              y = "Density\n",
+#              x = "Residuals\nEstimated FC - True value (years)")
+#
+#     ### Printing plot
+#     png(filename = paste0("coverageDensity_", fcNum, ".png"),
+#         width = 10, height = 10, units = "in", res = 600, pointsize=10)
+#
+#         print(ciDensity +
+#                   theme_bw() +
+#                   theme(legend.position="top", legend.direction="horizontal",
+#                         axis.text.x = element_text(angle = 45, hjust = 1),
+#                         strip.text.y = element_text(size = 8))) #, palette = 1, direction = 1)
+#
+#     dev.off()
+# }
 #
 #
-# #################
+# ### computing bootstrap 95CI
+# coverageDf <- survivalBootstrap %>%
+#     mutate(residual = estimate - trueFC300) %>%
+#     group_by(fireCycle, treatment, sampleSize, resamplingEffort, method) %>%
+#     summarise(ll = quantile(residual, 0.025),
+#               ul = quantile(residual, 0.975))
 #
-# nRep <- max(trueFC$replicate)
+# rm(survivalBootstrap)
+# ### computing coverage rate
+# coverageDf <- merge(survivalEstimates, coverageDf)
+# #
+# coverageSummary <- coverageDf %>%
+#     mutate(residual = estimate - trueFC300) %>%
+#     group_by(fireCycle, treatment, sampleSize, method, resamplingEffort) %>%
+#     summarise(coverage = sum(ll < residual & ul > residual)/n())
 #
-# hist_sim300 <- ggplot(df, aes(x = value, fill = variable)) +
-#     geom_histogram(position="dodge", binwidth = 0.075) +
-#     facet_grid(treatment ~ fireCycle, scales = "free_x") +
-#     scale_x_log10(breaks = c(30, 62.5, 125, 250, 500, 1000, 2000, 4000)) +
-#     geom_vline(data = trueFCSummary,  aes(xintercept = meanTSF),
-#                colour="black", linetype = 3, size = 0.5) +
-#     geom_vline(data = trueFCSummary,  aes(xintercept = mean300),
-#                colour="darkolivegreen", linetype = 3, size = 0.75) +
-#     geom_vline(data = trueFCSummary,  aes(xintercept = mean50),
-#                colour="red3", linetype = 3, size = 0.75) +
-#     scale_fill_manual("", values = c("black", "darkolivegreen", "red3")) +
-#     labs(title = paste0("Realized fire activity for all 300-yrs simulations\n(",
-#                         nRep, " replicates per treatment)"),
-#      y = "Number of replicates\n",
-#      x = "\nYears (log scale)")
+# # converting sampleSize back to numerical values
+# coverageSummary$sampleSize <- as.numeric(gsub("sample size: ", "", coverageSummary$sampleSize))
 #
-#
-# png(filename="realizedFC300.png",
-#     width = 10, height = 7, units = "in", res = 600, pointsize=10)
-#
-#     print(hist_sim300 +
-#               theme_bw() +
-#               theme(legend.position="top", legend.direction="horizontal",
-#                     axis.text.x = element_text(angle = 45, hjust = 1)))
-#
-# dev.off()
-#
-# ################################################################################
-# ################################################################################
-
-# ################################################################################
-# ################################################################################
-# ######
-# ######      Plotting 300-yrs simulations residuals
-# ######
-# ##### loading FC estimation obtained from simulated field sampling experiment
-# survivalEstimates <- get(load(paste(outputFolder, "survivalEstimates.RData", sep ="/")))
-# survivalEstimates$sampleSize <- as.numeric(survivalEstimates$sampleSize)
-# ################################################################################
-################################################################################
-
-# ################################################################################
-# ##### Boxplot - Residuals (Residuals by SampleSize, for each fire cycles and treatments)
-# ################################################################################
-# ### Computing residuals to plot
-# residualsDF <- survivalEstimates %>%
-#     mutate(residual300 =  estimate - trueFC300,
-#            residual150 = estimate - trueFC150,
-#            residual50 = estimate - trueFC50) %>%
-#     group_by(fireCycle, treatment, sampleSize, method) %>%
-#     summarise(meanResidual300 = round(mean(residual300), 1),
-#               meanResidual150 = round(mean(residual150), 1),
-#               meanResidual50 = round(mean(residual50), 1),
-#               p005Residual300 = round(quantile(residual300, 0.005), 1),
-#               p025Residual300 = round(quantile(residual300, 0.025), 1),
-#               p05Residual300 = round(quantile(residual300, 0.05), 1),
-#               p50Residual300 = round(quantile(residual300, 0.5), 1),
-#               p95Residual300 = round(quantile(residual300, 0.95), 1),
-#               p975Residual300 = round(quantile(residual300, 0.975), 1),
-#               p995Residual300 = round(quantile(residual300, 0.995), 1))
-#
-# ### renaming factors for nice plotting
-# fcLevels <- unique(paste0(residualsDF$fireCycle, "-yrs. FC"))
-# residualsDF$fireCycle <- factor(paste0(residualsDF$fireCycle, "-yrs. FC"), levels = fcLevels)
-# residualsDF$treatment <- factor(residualsDF$treatment)
-# levels(residualsDF$treatment) <- c("Decreasing fire activity",
-#                                    "Constant fire activity",
-#                                    "Increasing fire activity")
-# residualsDF$treatment <- factor(residualsDF$treatment, levels = rev(levels(residualsDF$treatment)))
-# residualsDF$fireCycle <- factor(residualsDF$fireCycle)
-#
-# ### The 'data.frame' to plot
-# df <- residualsDF %>%
-#     filter(method %in% c("cox", "weib", "exp"))
-# df <- droplevels(df)
-# ### renaming 'method'
-# levels(df$method) <- c("Cox", "Weibull", "Exponential")
-#
-# ###############################################################
-# ### Boxplot
-#
-# boxPlotGraph <- ggplot(df, aes(x = factor(sampleSize))) +#,color = method)) +
-#     geom_hline(yintercept = 0, size = 0.25, color = "grey") +
-#     geom_boxplot(aes(ymin = p025Residual300,
-#                      lower = p05Residual300,
-#                      middle = meanResidual300,
-#                      upper = p95Residual300,
-#                      ymax = p975Residual300,
-#                      #group = sampleSize,
-#                      fill = method),
-#                  position = position_dodge(width = 0.5),
-#                  width = 0.5,
-#                  stat = "identity",
-#                  size = 0.3,
-#                  alpha = 1) + #
-#     facet_grid(fireCycle ~ treatment, scales = "free") +
-#     labs(title = "Fire cycle estimation error from simulated forest fire history\nreconstruction affected by censoring\n",
-#          y = "Estimate - True fire cycle\n(residuals)",
+# ### plotting
+# coverageSummaryPlot <- ggplot(coverageSummary, aes(x = sampleSize, y = coverage, colour = method, linetype = resamplingEffort)) +
+#     facet_grid(fireCycle ~ treatment) +
+#     geom_hline(yintercept = 0.95, linetype = "dashed", size = 0.5, col = "grey") +
+#     geom_line() +
+#     ylim(0.75, 1) +
+#     scale_colour_manual(values = c("seagreen4", "goldenrod2", "indianred4")) +
+#     #?scale_colour_brewer(type = "qual") +
+#     scale_linetype_manual(values=c("dotted", "solid", "twodash")) +
+#     labs(title = paste0("Coverage rate of bootstrap 95% confidence intervals\n(10000 resampling)\n"),
+#          y = "Coverage rate\n",
 #          x = "\nSample size")
 #
-# ###
 #
-# png(filename="residualsCens.png",
-#     width = 10, height = 6, units = "in", res = 600, pointsize=10)
+# ### printing plot
+# png(filename = paste0("coverage.png"),
+#     width = 10, height = 10, units = "in", res = 600, pointsize=10)
 #
-#     print(boxPlotGraph +
-#               scale_fill_brewer(type = "qual") +#, palette = 1, direction = 1)
+#     print(coverageSummaryPlot +
+#               theme_bw() +
+#               theme(axis.text.x = element_text(angle = 45, hjust = 1),
+#                     #legend.position="right", legend.direction="horizontal",
+#                     strip.text.y = element_text(size = 10))) #, palette = 1, direction = 1)
 #
-#
-#               theme_bw())
-# # print(g4 + theme_grey(base_size=72) +
-# #           scale_x_continuous(breaks = breaks) +
-# #           theme(axis.text.x = element_text(size=44, angle = 45, hjust = 1),
-# #                 axis.text.y = element_text(size=48),
-# #                 strip.text.x = element_text(size=40),
-# #                 strip.text.y = element_text(size=60)))
 # dev.off()
-# ###############################################################
-# ###############################################################
+#
+#
+# # ################################################################################
+# # ################################################################################
+
+
+################################################################################
+################################################################################
+######
+######      Plotting 300-yrs simulations results
+######
+require(ggplot2)
+require(quantreg)
+require(RColorBrewer)
+require(dichromat) ### for 'rollmean'
+################################################################################
+################################################################################
+
+###
+trueFC <- distinct(survivalEstimates[, c("fireCycle", "treatment", "replicate", "meanTSF",
+                                      "trueFC50", "trueFC150", "trueFC300", "meanAAB")])
+trueFCSummary <- trueFC %>%
+    group_by(fireCycle, treatment) %>%
+    summarise(meanTSF = round(mean(meanTSF),1),
+              mean50 = round(mean(trueFC50), 1),
+              mean150 = round(mean(trueFC150), 1),
+              mean300 = round(mean(trueFC300),1))
+
+###
+df <- melt(trueFC, id.vars = c("fireCycle", "treatment", "replicate"),
+            measure.vars = c("trueFC50", "trueFC150", "trueFC300", "meanTSF"))
+df <- df %>%
+    filter(variable != "trueFC50")
+df <- droplevels(df)
+
+### renaming / reordering levels for nicer plotting
+
+###
+df$variable <- factor(df$variable, levels = c("meanTSF", "trueFC300", "trueFC150"))
+df$variable <- factor(as.numeric(df$variable))
+levels(df$variable) <- c("Final mean TSF  ",
+                          "True FC (entire simulation)  ",
+                          "True FC (last 150 years)  ")
+
+
+#################
+
+nRep <- max(trueFC$replicate)
+
+hist_sim300 <- ggplot(df, aes(x = value, fill = variable)) +
+    geom_histogram(position="dodge", binwidth = 0.075) +
+    facet_grid(treatment ~ fireCycle, scales = "free_x") +
+    scale_x_log10(breaks = c(30, 62.5, 125, 250, 500, 1000, 2000, 4000)) +
+    geom_vline(data = trueFCSummary,  aes(xintercept = meanTSF),
+               colour="black", linetype = 3, size = 0.5) +
+    geom_vline(data = trueFCSummary,  aes(xintercept = mean300),
+               colour="darkolivegreen", linetype = 3, size = 0.75) +
+    geom_vline(data = trueFCSummary,  aes(xintercept = mean150),
+               colour="red3", linetype = 3, size = 0.75) +
+    scale_fill_manual("", values = c("black", "darkolivegreen", "red3")) +
+    labs(title = paste0("Realized fire activity for all 300-yrs simulations\n(",
+                        nRep, " replicates per treatment)"),
+     y = "Number of replicates\n",
+     x = "\nYears (log scale)")
+
+
+png(filename="realizedFC300.png",
+    width = 10, height = 7, units = "in", res = 600, pointsize=10)
+
+    print(hist_sim300 +
+              theme_bw() +
+              theme(legend.position="top", legend.direction="horizontal",
+                    axis.text.x = element_text(angle = 45, hjust = 1)))
+
+dev.off()
+
+################################################################################
+################################################################################
+
+################################################################################
+################################################################################
+######
+######      Plotting 300-yrs simulations residuals
+######
+################################################################################
+###############################################################################
+
+################################################################################
+##### Boxplot - Residuals (Residuals by SampleSize, for each fire cycles and treatments)
+################################################################################
+### Computing residuals to plot
+residualsDF <- survivalEstimates %>%
+    mutate(residual300 =  estimate - trueFC300,
+           residual150 = estimate - trueFC150,
+           residual50 = estimate - trueFC50) %>%
+    group_by(fireCycle, treatment, sampleSize, method) %>%
+    summarise(meanResidual300 = round(mean(residual300), 1),
+              meanResidual150 = round(mean(residual150), 1),
+              meanResidual50 = round(mean(residual50), 1),
+              p005Residual300 = round(quantile(residual300, 0.005), 1),
+              p025Residual300 = round(quantile(residual300, 0.025), 1),
+              p05Residual300 = round(quantile(residual300, 0.05), 1),
+              p50Residual300 = round(quantile(residual300, 0.5), 1),
+              p95Residual300 = round(quantile(residual300, 0.95), 1),
+              p975Residual300 = round(quantile(residual300, 0.975), 1),
+              p995Residual300 = round(quantile(residual300, 0.995), 1))
+
+### renaming sample size
+ss <- as.factor(gsub("sample size: ", "", residualsDF$sampleSize))
+ss <- factor(ss, levels = levels(ss)[order(as.numeric(levels(ss)))])
+residualsDF$sampleSize <- ss
+
+###############################################################
+### Boxplot
+
+boxPlotGraph <- ggplot(residualsDF, aes(x = factor(sampleSize))) +#,color = method)) +
+    geom_hline(yintercept = 0, size = 0.25, color = "grey") +
+    geom_boxplot(aes(ymin = p025Residual300,
+                     lower = p05Residual300,
+                     middle = meanResidual300,
+                     upper = p95Residual300,
+                     ymax = p975Residual300,
+                     #group = sampleSize,
+                     fill = method),
+                 position = position_dodge(width = 0.5),
+                 width = 0.5,
+                 stat = "identity",
+                 size = 0.3,
+                 alpha = 1) + #
+    facet_grid(fireCycle ~ treatment, scales = "free") +
+    labs(title = "Fire cycle estimation error from simulated forest fire history\nreconstruction affected by censoring\n",
+         y = "Estimate - True fire cycle\n(residuals)",
+         x = "\nSample size")
+
+###
+
+png(filename="residualsCens.png",
+    width = 10, height = 6, units = "in", res = 600, pointsize=10)
+
+    print(boxPlotGraph +
+              scale_fill_manual(values = mColors) +
+              #scale_fill_brewer(type = "qual") +#, palette = 1, direction = 1)
+
+
+              theme_bw())
+# print(g4 + theme_grey(base_size=72) +
+#           scale_x_continuous(breaks = breaks) +
+#           theme(axis.text.x = element_text(size=44, angle = 45, hjust = 1),
+#                 axis.text.y = element_text(size=48),
+#                 strip.text.x = element_text(size=40),
+#                 strip.text.y = element_text(size=60)))
+dev.off()
+###############################################################
+###############################################################
 
 
 
