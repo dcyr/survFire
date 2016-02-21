@@ -99,7 +99,7 @@ rm(output)
 
 ####################################################################
 ######  bootstrap estimates
-survivalBootstrap <- get(load(paste(outputFolder, "survivalBootstrap.RData", sep="/")))
+survivalBootstrap <- get(load(paste(outputFolder, "survivalBootstrapFullDF.RData", sep="/")))
 ################################################################################
 ################################################################################
 
