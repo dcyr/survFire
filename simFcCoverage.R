@@ -4,7 +4,7 @@
 rm(list=ls())
 ####################################################################
 ####################################################################
-setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
+# setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
 outputFolder <- paste(getwd(), "compiledOutputs", sep="/")
 wwd <- paste(getwd(), Sys.Date(), sep="/")
 dir.create(wwd)
@@ -112,5 +112,5 @@ stopCluster(cl)
 t2 <- Sys.time()
 ##
 print(t2-t1)
-save(survivalBootstrap, file = "survivalBootstrap.RData")
+save(survivalBootstrap, file = "survivalBootstrapFullDF.RData")
 

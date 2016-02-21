@@ -71,7 +71,7 @@ for (i in seq_along(x)) {#
     rm(output)
 }
 outputCompiled <- do.call("rbind", outputList)
-save(outputCompiled, file = "simOutputCompiled.RData")
+save(outputCompiled, file = "simOutputCompiledFullDF.RData")
 
 
 tsfFinalList <- list()
