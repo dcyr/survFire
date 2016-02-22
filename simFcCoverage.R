@@ -109,8 +109,6 @@ survivalBootstrap <- foreach(i = unique(tsfSample$ID), .combine="rbind") %do% {
 }
 
 stopCluster(cl)
-t2 <- Sys.time()
 ##
-print(t2-t1)
 save(survivalBootstrap, file = "survivalBootstrapFullDF.RData")
 

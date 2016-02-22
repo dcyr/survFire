@@ -19,7 +19,12 @@ weibFitFnc <- function(x) {        ### weibull exponential fitting
 coxFitFnc <- function(x) {
     cox_reg <- coxph(x ~ 1)
     base.cox <- basehaz(cox_reg)
-    ##fc <- max(base.cox[,2])/max(base.cox[,1])
-    fc <- ifelse(length(base.cox[,1])==1, max(base.cox[,2])/max(base.cox[,1]), mean(c(base.cox[length(base.cox[,1])-1,2],base.cox[length(base.cox[,1]),2])) / mean(c(base.cox[length(base.cox[,1])-1,1],base.cox[length(base.cox[,1]),1])))
+    maxHaz <- max(base.cox[,1])
+    index <- which(base.cox[,1] == maxHaz)
+    fc <- mean(base.cox[index,"time"])/maxHaz
+#     base.cox <- distinct(base.cox, hazard)
+#     fc <- max(base.cox[,2])/max(base.cox[,1])
+# #     fc <- ifelse(length(base.cox[,1])==1, max(base.cox[,2]) / max(base.cox[,1]),
+#                  mean(c(base.cox[length(base.cox[,1])-1,2], base.cox[length(base.cox[,1]),2])) / mean(c(base.cox[length(base.cox[,1])-1,1],base.cox[length(base.cox[,1]),1])))
     return(list(cycle=fc, freq=1/fc))
 }

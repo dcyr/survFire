@@ -68,7 +68,6 @@ for (fc in unique(output$fireCycle)) {
             trueFC[[fc]][[treat]][[r]][,"trueFC300"] <- totalArea/rollmean(aab, 300, align = "right", fill = NA)
         }
     }
-
 }
 ### Unlisting everything (a "foreach" construct in the previous loop could avoid that)
 tmp <- list()
@@ -118,6 +117,8 @@ survivalBootstrap <- survivalBootstrap %>%
 #     filter((sampleSize == 25 & fireCycle >= 1000) == F) %>%
 #     filter((method == "exp" & fireCycle >= 1000 & treatment == "-0.5") == F) %>%
 #     filter((sampleSize <= 94 & fireCycle >= 1000 & treatment == "-0.5") == F)
+
+
 
 ### the following takes a while ...
 survivalBootstrap <- merge(survivalBootstrap, trueFC)

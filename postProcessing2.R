@@ -24,13 +24,15 @@ require(ggplot2)
 require(RColorBrewer)
 ################################################################################
 ################################################################################
-
+### choosing between censored and uncensored data sets
+#FcEstimatedMethod <- c("cox", "weib", "exp")
+FcEstimatedMethod <- c("coxUncensored", "weibUncensored", "expUncensored")
 
 ####################################################################
 ######  loading bootstrap estimates
 survivalEstimates <- get(load(paste(outputFolder, "survivalEstimates.RData", sep ="/")))
 survivalEstimates <- survivalEstimates %>%
-    filter(method %in% c("cox", "weib", "exp")) %>%
+    filter(method %in% FcEstimatedMethod) %>%
     filter(sampleSize >= 25)
 survivalEstimates <- droplevels(survivalEstimates)
 ################################################################################
@@ -38,7 +40,7 @@ survivalEstimates <- droplevels(survivalEstimates)
 ################################################################################
 ######  loading bootstrap estimates
 survivalBootstrap <- get(load(paste(outputFolder, "survivalBootstrap.RData", sep="/")))
-survivalBootstrap <- filter(survivalBootstrap, method %in% c("cox", "weib", "exp"))
+survivalBootstrap <- filter(survivalBootstrap, method %in% FcEstimatedMethod)
 survivalBootstrap <- droplevels(survivalBootstrap)
 
 
@@ -87,8 +89,6 @@ for (fc in unique(survivalBootstrap$fireCycle)) {
         #filter(resamplingEffort == 1) %>%
         #filter(treatment == 0) %>%
         filter(fireCycle == fc) %>%
-        filter(method %in% c("Cox", "Weibull", "Exponential")) %>%
-        #filter(method %in% c("coxUncensored", "weibUncensored", "expUncensored")) %>%
         mutate(residual = estimate - trueFC300)
 
     df <- droplevels(df)
@@ -114,7 +114,7 @@ for (fc in unique(survivalBootstrap$fireCycle)) {
              x = "Residuals\nEstimated FC - True value (years)")
 
     ### Printing plot
-    png(filename = paste0("coverageDensity_", fcNum, ".png"),
+    png(filename = paste0("coverageDensity_", fcNum, "UnCensored.png"),
         width = 10, height = 10, units = "in", res = 600, pointsize=10)
 
         print(ciDensity +
@@ -161,7 +161,7 @@ coverageSummaryPlot <- ggplot(coverageSummary, aes(x = sampleSize, y = coverage,
 
 
 ### printing plot
-png(filename = paste0("coverage.png"),
+png(filename = paste0("coverageUncensored.png"),
     width = 10, height = 10, units = "in", res = 600, pointsize=10)
 
     print(coverageSummaryPlot +

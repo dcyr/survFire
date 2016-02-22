@@ -92,8 +92,6 @@ survivalEstimates <- foreach(fc = unique(tsfFinal$fireCycle), .combine="rbind") 
     }
 }
 stopCluster(cl)
-t2 <- Sys.time()
 ##
-print(t2-t1)
 save(survivalEstimates, file = "survivalEstimatesFullDF.RData")
 
