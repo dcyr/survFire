@@ -26,7 +26,7 @@ require(RColorBrewer)
 ################################################################################
 ### choosing between censored and uncensored data sets
 #FcEstimatedMethod <- c("cox", "weib", "exp")
-FcEstimatedMethod <- c("coxUncensored", "weibUncensored", "expUncensored")
+FcEstimatedMethod <- c("cox", "weib", "exp")
 
 ####################################################################
 ######  loading bootstrap estimates
@@ -86,7 +86,7 @@ for (fc in unique(survivalBootstrap$fireCycle)) {
     fcNum <- as.numeric(gsub("-yrs. FC", "", fc))
     # plot distribution
     df <- survivalBootstrap %>%
-        #filter(resamplingEffort == 1) %>%
+        filter(resamplingEffort == "100%") %>%
         #filter(treatment == 0) %>%
         filter(fireCycle == fc) %>%
         mutate(residual = estimate - trueFC300)

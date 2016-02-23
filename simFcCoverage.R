@@ -4,7 +4,7 @@
 rm(list=ls())
 ####################################################################
 ####################################################################
-# setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
+setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
 outputFolder <- paste(getwd(), "compiledOutputs", sep="/")
 wwd <- paste(getwd(), Sys.Date(), sep="/")
 dir.create(wwd)
@@ -18,6 +18,7 @@ require(dplyr)
 require(reshape2)
 require(doSNOW)
 require(parallel)
+require(boot)
 source("../scripts/censFnc.R")
 source("../scripts/fcEstSurvFnc.R")
 ############################################
@@ -27,8 +28,8 @@ tsfFinal <- get(load(paste(outputFolder, "tsfFinal.RData", sep="/")))
 # the following design took XhXXmin to run with 3 cores on my machine
 sampleSize <- c(25, 50, 75, 94, 150, 250, 500)
 replicates <- unique(tsfFinal$replicate)
-resamplingEffort <- c(0.5, 1, 2)
-nBootstrap <- 100
+bootMethod <- "bca"
+nBootstrap <- 1000
 
 ## shrinking table to a collection of sample of maximum sample size
 tsfSample <- tsfFinal %>%
@@ -52,7 +53,8 @@ if (sysName=="Linux") {
 registerDoSNOW(cl)
 t1 <- Sys.time()
 ###
-survivalBootstrap <- foreach(i = unique(tsfSample$ID), .combine="rbind") %do% {
+survivalBootstrap <- foreach(i = unique(tsfSample$ID), .combine="rbind",
+                             .packages = c("survival", "boot", "dplyr", "foreach")) %dopar% {
     ###
     df <- tsfSample %>%
         filter(ID == i)
@@ -65,50 +67,47 @@ survivalBootstrap <- foreach(i = unique(tsfSample$ID), .combine="rbind") %do% {
         tsf <- sample_n(df, ss)
         tsf <- tsf$tsfFinal
         tsf[tsf == 0] <- 0.1
-        # transforming uncensored tsf sample into 'Surv' object
-        tsfUncensored <- Surv(tsf, rep(1, length(tsf)))
         # applying censoring function
         tsf <- censFnc(tsf, 100, 300)
-        #
-        tmp <- foreach(rs = resamplingEffort, .combine="rbind") %do% {#
 
-            tmp <- foreach(r = 1:nBootstrap, .combine="rbind",
-                           .packages = c("survival")) %dopar% {#
-                ### Bootstrap sampling
-                tsfIndex <- 1:nrow(tsf)
-                tsfIndex <- sample(tsfIndex, rs*max(tsfIndex), replace = TRUE)
-                tsfBoot <- tsf[tsfIndex]
-                tsfBootUncensored <- tsfUncensored[tsfIndex]
-                ### estimating FC from censored samples
-                cox <- coxFitFnc(tsfBoot)$cycle
-                weib <- weibFitFnc(tsfBoot)$cycle
-                exp <- expFitFnc(tsfBoot)$cycle
-                ### estimating FC from uncensored samples
-                coxUncensored <- coxFitFnc(tsfBootUncensored)$cycle
-                weibUncensored <- weibFitFnc(tsfBootUncensored)$cycle
-                expUncensored <- expFitFnc(tsfBootUncensored)$cycle
-                tmp <- data.frame(cox, weib, exp, coxUncensored, weibUncensored, expUncensored)
-                return(round(tmp, 1))
-            }
+        ##############################################
+        ### bootstrop estimation of FC from censored samples
+        coxBoot <- boot(as.matrix(tsf), statistic = coxFitFnc, R = nBootstrap, sim = "ordinary")
+        weibBoot <- boot(as.matrix(tsf), statistic = weibFitFnc, R = nBootstrap, sim = "ordinary")
+        expBoot <- boot(as.matrix(tsf), statistic = expFitFnc, R = nBootstrap, sim = "ordinary")
 
-            tmp <- data.frame(fireCycle = as.numeric(fc),
-                              treatment = treat,
-                              replicate = as.numeric(r),
-                              sampleSize = ss,
-                              resamplingEffort = rs,
-                              tmp)
-            tmp <- melt(tmp, id.vars = c("fireCycle", "treatment", "replicate", "sampleSize", "resamplingEffort"),
-                        meas.vars = c("cox", "weib", "exp", "coxUncensored", "weibUncensored", "expUncensored"),
-                        variable.name = "method",
-                        value.name = "estimate")
-            return(tmp)
-        }
+        ### computing 95%CI (somethmes fails)
+        try(coxBoot <- boot.ci(coxBoot, type = bootMethod))
+        try(weibBoot <- boot.ci(weibBoot, type = bootMethod))
+        try(expBoot <- boot.ci(expBoot, type = bootMethod))
+
+        ###
+        cox <- data.frame(method = "cox", estimate = coxBoot$t0,
+                          ll = ifelse(class(coxBoot) =="bootci", coxBoot[["bca"]][4], NA),
+                          ul = ifelse(class(coxBoot) =="bootci", coxBoot[["bca"]][5], NA))
+
+        weib <- data.frame(method = "weib", estimate = weibBoot$t0,
+                           ll = ifelse(class(weibBoot) =="bootci", weibBoot[["bca"]][4], NA),
+                           ul = ifelse(class(weibBoot) =="bootci", weibBoot[["bca"]][5], NA))
+        exp <- data.frame(method = "exp", estimate = expBoot$t0,
+                          ll = ifelse(class(expBoot) =="bootci", expBoot[["bca"]][4], NA),
+                          ul = ifelse(class(expBoot) =="bootci", expBoot[["bca"]][5], NA))
+
+        tmp <- rbind(cox, weib, exp)
+
+        tmp <-data.frame(fireCycle = as.numeric(fc),
+                         treatment = treat,
+                         replicate = as.numeric(r),
+                         sampleSize = ss,
+                         tmp)
         return(tmp)
+
     }
     return(tmp)
 }
-
+t2 <- Sys.time()
 stopCluster(cl)
+rownames(survivalBootstrap) <- 1:nrow(survivalBootstrap)
 ##
+print(t2-t1)
 save(survivalBootstrap, file = "survivalBootstrapFullDF.RData")
-

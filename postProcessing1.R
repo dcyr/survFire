@@ -15,7 +15,7 @@ require(dplyr)
 require(zoo)
 ################################################################################
 ################################################################################
-# setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
+setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
 outputFolder <- paste(getwd(), "compiledOutputs", sep="/")
 wwd <- paste(getwd(), Sys.Date(), sep="/")
 dir.create(wwd)
@@ -96,7 +96,8 @@ rm(output)
 
 
 
-####################################################################
+################################################################################
+################################################################################
 ######  bootstrap estimates
 survivalBootstrap <- get(load(paste(outputFolder, "survivalBootstrapFullDF.RData", sep="/")))
 ################################################################################
@@ -109,21 +110,17 @@ survivalBootstrap <- get(load(paste(outputFolder, "survivalBootstrapFullDF.RData
 survivalBootstrap <- survivalBootstrap %>%
     #filter(propNonFinite > 0.995) %>%
     filter(is.finite(estimate)) %>%
-    filter((fireCycle >= 1000) == F) %>%
-    filter((fireCycle >= 125 & sampleSize <= 10) == F) %>%
     filter((fireCycle >= 500 & method == "weib") == F) %>%
     filter((fireCycle >= 250 & sampleSize <= 25 & method == "weib") == F) %>%
     filter((fireCycle >= 500 & sampleSize <= 25 &  treatment == "-0.5") == F)
-#     filter((sampleSize == 25 & fireCycle >= 1000) == F) %>%
-#     filter((method == "exp" & fireCycle >= 1000 & treatment == "-0.5") == F) %>%
-#     filter((sampleSize <= 94 & fireCycle >= 1000 & treatment == "-0.5") == F)
-
-
 
 ### the following takes a while ...
 survivalBootstrap <- merge(survivalBootstrap, trueFC)
 save(survivalBootstrap, file = "survivalBootstrap.RData")
+###
 
+
+################################################################################
 ################################################################################
 ##### loading FC estimation obtained from simulated field sampling experiment
 survivalEstimates <- get(load(paste(outputFolder, "survivalEstimatesFullDF.RData", sep ="/")))
@@ -135,18 +132,12 @@ survivalEstimates$sampleSize <- as.numeric(survivalEstimates$sampleSize)
 ##### Filtering results that were deemed uninteresting through a trial and error
 ##### process (Usually because it creates CI so wide they're useless)
 survivalEstimates <- survivalEstimates %>%
-    #filter(propNonFinite > 0.995) %>%
     filter(is.finite(estimate)) %>%
-    filter((fireCycle >= 1000) == F) %>%
-    filter((fireCycle >= 125 & sampleSize <= 10) == F) %>%
     filter((fireCycle >= 500 & method == "weib") == F) %>%
     filter((fireCycle >= 250 & sampleSize <= 25 & method == "weib") == F) %>%
     filter((fireCycle >= 500 & sampleSize <= 25 &  treatment == "-0.5") == F)
-#     filter((sampleSize == 25 & fireCycle >= 1000) == F) %>%
-#     filter((method == "exp" & fireCycle >= 1000 & treatment == "-0.5") == F) %>%
-#     filter((sampleSize <= 94 & fireCycle >= 1000 & treatment == "-0.5") == F)
 
 ### the following takes a while ...
 survivalEstimates <- merge(survivalEstimates, trueFC)
 save(survivalEstimates, file = "survivalEstimates.RData")
-
+###
