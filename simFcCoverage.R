@@ -76,7 +76,7 @@ survivalBootstrap <- foreach(i = unique(tsfSample$ID), .combine="rbind",
         weibBoot <- boot(as.matrix(tsf), statistic = weibFitFnc, R = nBootstrap, sim = "ordinary")
         expBoot <- boot(as.matrix(tsf), statistic = expFitFnc, R = nBootstrap, sim = "ordinary")
 
-        ### computing 95%CI (somethmes fails)
+        ### computing 95%CI (sometimes fails)
         try(coxBoot <- boot.ci(coxBoot, type = bootMethod))
         try(weibBoot <- boot.ci(weibBoot, type = bootMethod))
         try(expBoot <- boot.ci(expBoot, type = bootMethod))
@@ -85,7 +85,6 @@ survivalBootstrap <- foreach(i = unique(tsfSample$ID), .combine="rbind",
         cox <- data.frame(method = "cox", estimate = coxBoot$t0,
                           ll = ifelse(class(coxBoot) =="bootci", coxBoot[["bca"]][4], NA),
                           ul = ifelse(class(coxBoot) =="bootci", coxBoot[["bca"]][5], NA))
-
         weib <- data.frame(method = "weib", estimate = weibBoot$t0,
                            ll = ifelse(class(weibBoot) =="bootci", weibBoot[["bca"]][4], NA),
                            ul = ifelse(class(weibBoot) =="bootci", weibBoot[["bca"]][5], NA))
