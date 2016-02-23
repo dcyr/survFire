@@ -113,12 +113,13 @@ survivalBootstrap <- survivalBootstrap %>%
     filter((fireCycle >= 500 & method == "weib") == F) %>%
     filter((fireCycle >= 250 & sampleSize <= 25 & method == "weib") == F) %>%
     filter((fireCycle >= 500 & sampleSize <= 25 &  treatment == "-0.5") == F)
+survivalBootstrap$treatment <- as.factor(survivalBootstrap$treatment)
 
 ### the following takes a while ...
 survivalBootstrap <- merge(survivalBootstrap, trueFC)
+survivalBootstrap <- survivalBootstrap[complete.cases(survivalBootstrap),]
 save(survivalBootstrap, file = "survivalBootstrap.RData")
 ###
-
 
 ################################################################################
 ################################################################################

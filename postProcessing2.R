@@ -47,7 +47,7 @@ survivalBootstrap <- droplevels(survivalBootstrap)
 ### defining colors, renaming / reordering levels for nicer plotting
 mColors <- c("seagreen4", "goldenrod2", "indianred4")
 # fireCycle
- fcLevels <- unique(survivalEstimates$fireCycle)
+fcLevels <- unique(survivalEstimates$fireCycle)
 fcLevels <- fcLevels[order(fcLevels)]
 fcLevels <- paste0(fcLevels, "-yrs. FC")
 survivalEstimates$fireCycle <- factor(paste0(survivalEstimates$fireCycle, "-yrs. FC"), levels = fcLevels)
@@ -61,13 +61,6 @@ survivalBootstrap$treatment <- as.factor(survivalBootstrap$treatment)
 levels(survivalEstimates$treatment) <- levels(survivalBootstrap$treatment) <- tLevels
 survivalEstimates$treatment <- factor(survivalEstimates$treatment, levels = rev(tLevels))
 survivalBootstrap$treatment <- factor(survivalBootstrap$treatment, levels = rev(tLevels))
-
-# resamplinEffort
-reLevels <- c("50%",
-              "100%",
-              "200%")
-survivalBootstrap$resamplingEffort <- as.factor(survivalBootstrap$resamplingEffort)
-levels(survivalBootstrap$resamplingEffort) <- reLevels
 
 # sampleSize
 ssLevels <- unique(survivalEstimates$sampleSize)
@@ -86,7 +79,6 @@ for (fc in unique(survivalBootstrap$fireCycle)) {
     fcNum <- as.numeric(gsub("-yrs. FC", "", fc))
     # plot distribution
     df <- survivalBootstrap %>%
-        filter(resamplingEffort == "100%") %>%
         #filter(treatment == 0) %>%
         filter(fireCycle == fc) %>%
         mutate(residual = estimate - trueFC300)
@@ -129,25 +121,35 @@ for (fc in unique(survivalBootstrap$fireCycle)) {
 
 ### computing bootstrap 95CI
 coverageDf <- survivalBootstrap %>%
-    mutate(residual = estimate - trueFC300) %>%
-    group_by(fireCycle, treatment, sampleSize, resamplingEffort, method) %>%
-    summarise(ll = quantile(residual, 0.025),
-              ul = quantile(residual, 0.975))
+    mutate(ll = ll-estimate,
+           ul = ul-estimate) %>%
+    group_by(fireCycle, treatment, sampleSize, method) %>%
+    summarise(meanll = mean(ll),
+              meanul = mean(ul),
+              medianll = median(ll),
+              medianul = median(ul))
 
-rm(survivalBootstrap)
+
+
+coverageDf[,c("meanll", "meanul")]
+hist(coverageDf$meanul, xlim=c(-500, 500))
+
+summary(coverageDf$ll - coverageDf$medianll)
+
 ### computing coverage rate
 coverageDf <- merge(survivalEstimates, coverageDf)
+
 #
 coverageSummary <- coverageDf %>%
     mutate(residual = estimate - trueFC300) %>%
-    group_by(fireCycle, treatment, sampleSize, method, resamplingEffort) %>%
+    group_by(fireCycle, treatment, sampleSize, method) %>%
     summarise(coverage = sum(ll < residual & ul > residual)/n())
 
 # converting sampleSize back to numerical values
 coverageSummary$sampleSize <- as.numeric(gsub("sample size: ", "", coverageSummary$sampleSize))
 
 ### plotting
-coverageSummaryPlot <- ggplot(coverageSummary, aes(x = sampleSize, y = coverage, colour = method, linetype = resamplingEffort)) +
+coverageSummaryPlot <- ggplot(coverageSummary, aes(x = sampleSize, y = coverage, colour = method)) +
     facet_grid(fireCycle ~ treatment) +
     geom_hline(yintercept = 0.95, linetype = "dashed", size = 0.5, col = "grey") +
     geom_line() +

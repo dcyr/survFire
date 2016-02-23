@@ -28,7 +28,7 @@ tsfFinal <- get(load(paste(outputFolder, "tsfFinal.RData", sep="/")))
 # the following design took XhXXmin to run with 3 cores on my machine
 sampleSize <- c(25, 50, 75, 94, 150, 250, 500)
 replicates <- unique(tsfFinal$replicate)
-bootMethod <- "bca"
+bootMethod <- c("basic", "bca")
 nBootstrap <- 1000
 
 ## shrinking table to a collection of sample of maximum sample size
@@ -62,6 +62,7 @@ survivalBootstrap <- foreach(i = unique(tsfSample$ID), .combine="rbind",
     treat <- unique(df$treatment)
     r <- unique(df$replicate)
     #
+
     tmp <- foreach(ss = sampleSize, .combine="rbind") %do% {
         # sampling true tsf
         tsf <- sample_n(df, ss)
@@ -69,38 +70,46 @@ survivalBootstrap <- foreach(i = unique(tsfSample$ID), .combine="rbind",
         tsf[tsf == 0] <- 0.1
         # applying censoring function
         tsf <- censFnc(tsf, 100, 300)
+        tmp <- foreach(m = bootMethod, .combine="rbind") %do% {
+            ##############################################
+            ### bootstrop estimation of FC from censored samples
+            coxBoot <- boot(as.matrix(tsf), statistic = coxFitFnc, R = nBootstrap, sim = "ordinary")
+            weibBoot <- boot(as.matrix(tsf), statistic = weibFitFnc, R = nBootstrap, sim = "ordinary")
+            expBoot <- boot(as.matrix(tsf), statistic = expFitFnc, R = nBootstrap, sim = "ordinary")
 
-        ##############################################
-        ### bootstrop estimation of FC from censored samples
-        coxBoot <- boot(as.matrix(tsf), statistic = coxFitFnc, R = nBootstrap, sim = "ordinary")
-        weibBoot <- boot(as.matrix(tsf), statistic = weibFitFnc, R = nBootstrap, sim = "ordinary")
-        expBoot <- boot(as.matrix(tsf), statistic = expFitFnc, R = nBootstrap, sim = "ordinary")
 
-        ### computing 95%CI (sometimes fails)
-        try(coxBoot <- boot.ci(coxBoot, type = bootMethod))
-        try(weibBoot <- boot.ci(weibBoot, type = bootMethod))
-        try(expBoot <- boot.ci(expBoot, type = bootMethod))
+            ### computing 95%CI (sometimes fails)
+            try(coxBoot <- boot.ci(coxBoot, type = m))
+            try(weibBoot <- boot.ci(weibBoot, type = m))
+            try(expBoot <- boot.ci(expBoot, type = m))
 
-        ###
-        cox <- data.frame(method = "cox", estimate = coxBoot$t0,
-                          ll = ifelse(class(coxBoot) =="bootci", coxBoot[["bca"]][4], NA),
-                          ul = ifelse(class(coxBoot) =="bootci", coxBoot[["bca"]][5], NA))
-        weib <- data.frame(method = "weib", estimate = weibBoot$t0,
-                           ll = ifelse(class(weibBoot) =="bootci", weibBoot[["bca"]][4], NA),
-                           ul = ifelse(class(weibBoot) =="bootci", weibBoot[["bca"]][5], NA))
-        exp <- data.frame(method = "exp", estimate = expBoot$t0,
-                          ll = ifelse(class(expBoot) =="bootci", expBoot[["bca"]][4], NA),
-                          ul = ifelse(class(expBoot) =="bootci", expBoot[["bca"]][5], NA))
+            ###
+            cox <- c(method = "cox", estimate = NA, ll = NA, ul = NA)
+            weib <- c(method = "weib", estimate = NA, ll = NA, ul = NA)
+            exp <- c(method = "exp", estimate = NA, ll = NA, ul = NA)
 
-        tmp <- rbind(cox, weib, exp)
+            try(cox <- data.frame(method = "cox", estimate = coxBoot$t0,
+                              ll = ifelse(class(coxBoot) =="bootci", coxBoot[[m]][4], NA),
+                              ul = ifelse(class(coxBoot) =="bootci", coxBoot[[m]][5], NA)))
+            try(weib <- data.frame(method = "weib", estimate = weibBoot$t0,
+                               ll = ifelse(class(weibBoot) =="bootci", weibBoot[[m]][4], NA),
+                               ul = ifelse(class(weibBoot) =="bootci", weibBoot[[m]][5], NA)))
+            try(exp <- data.frame(method = "exp", estimate = expBoot$t0,
+                              ll = ifelse(class(expBoot) =="bootci", expBoot[[m]][4], NA),
+                              ul = ifelse(class(expBoot) =="bootci", expBoot[[m]][5], NA)))
 
-        tmp <-data.frame(fireCycle = as.numeric(fc),
-                         treatment = treat,
-                         replicate = as.numeric(r),
-                         sampleSize = ss,
-                         tmp)
+            tmp <- rbind(cox, weib, exp)
+
+            tmp <-data.frame(fireCycle = as.numeric(fc),
+                             treatment = treat,
+                             replicate = as.numeric(r),
+                             bootMethod = m,
+                             sampleSize = ss,
+                             round(tmp, 1))
+            return(tmp)
+
+        }
         return(tmp)
-
     }
     return(tmp)
 }
