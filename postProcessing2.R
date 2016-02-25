@@ -121,29 +121,20 @@ for (fc in unique(survivalBootstrap$fireCycle)) {
 
 ### computing bootstrap 95CI
 coverageDf <- survivalBootstrap %>%
-    mutate(ll = ll-estimate,
-           ul = ul-estimate) %>%
+    mutate(ll = ll - estimate,
+           ul = ul - estimate) %>%
     group_by(fireCycle, treatment, sampleSize, method) %>%
-    summarise(meanll = mean(ll),
-              meanul = mean(ul),
-              medianll = median(ll),
-              medianul = median(ul))
-
-
-
-coverageDf[,c("meanll", "meanul")]
-hist(coverageDf$meanul, xlim=c(-500, 500))
-
-summary(coverageDf$ll - coverageDf$medianll)
+    summarise(ll = mean(ll),
+              ul = mean(ul))
 
 ### computing coverage rate
 coverageDf <- merge(survivalEstimates, coverageDf)
 
 #
 coverageSummary <- coverageDf %>%
-    mutate(residual = estimate - trueFC300) %>%
+    mutate(residualProp = estimate - trueFC300) %>%
     group_by(fireCycle, treatment, sampleSize, method) %>%
-    summarise(coverage = sum(ll < residual & ul > residual)/n())
+    summarise(coverage = sum(ll < residualProp & ul > residualProp)/n())
 
 # converting sampleSize back to numerical values
 coverageSummary$sampleSize <- as.numeric(gsub("sample size: ", "", coverageSummary$sampleSize))
@@ -151,9 +142,9 @@ coverageSummary$sampleSize <- as.numeric(gsub("sample size: ", "", coverageSumma
 ### plotting
 coverageSummaryPlot <- ggplot(coverageSummary, aes(x = sampleSize, y = coverage, colour = method)) +
     facet_grid(fireCycle ~ treatment) +
-    geom_hline(yintercept = 0.95, linetype = "dashed", size = 0.5, col = "grey") +
-    geom_line() +
-    ylim(0.75, 1) +
+    geom_hline(yintercept = 0.95, linetype = "dashed", size = 0.5, col = "black") +
+    geom_line(size = 1) +
+    ylim(0, 1) +
     scale_colour_manual(values = c("seagreen4", "goldenrod2", "indianred4")) +
     #?scale_colour_brewer(type = "qual") +
     scale_linetype_manual(values=c("dotted", "solid", "twodash")) +
@@ -164,13 +155,13 @@ coverageSummaryPlot <- ggplot(coverageSummary, aes(x = sampleSize, y = coverage,
 
 ### printing plot
 png(filename = paste0("coverageUncensored.png"),
-    width = 10, height = 10, units = "in", res = 600, pointsize=10)
+    width = 10, height = 6, units = "in", res = 600, pointsize=10)
 
     print(coverageSummaryPlot +
-              theme_bw() +
-              theme(axis.text.x = element_text(angle = 45, hjust = 1),
-                    #legend.position="right", legend.direction="horizontal",
-                    strip.text.y = element_text(size = 10))) #, palette = 1, direction = 1)
+              theme_bw())# +
+              #theme(axis.text.x = element_text(angle = 45, hjust = 1),
+              #      #legend.position="right", legend.direction="horizontal",
+              #      strip.text.y = element_text(size = 10))) #, palette = 1, direction = 1)
 
 dev.off()
 
@@ -215,7 +206,7 @@ df$variable <- factor(df$variable, levels = c("meanTSF", "trueFC300", "trueFC50"
 df$variable <- factor(as.numeric(df$variable))
 levels(df$variable) <- c("Final mean TSF  ",
                           "True FC (entire simulation)  ",
-                          "True FC (last 150 years)  ")
+                          "True FC (last 50 years)  ")
 
 
 #################
@@ -227,12 +218,12 @@ hist_sim300 <- ggplot(df, aes(x = value, fill = variable)) +
     facet_grid(treatment ~ fireCycle, scales = "free_x") +
     scale_x_log10(breaks = c(30, 62.5, 125, 250, 500, 1000, 2000, 4000)) +
     geom_vline(data = trueFCSummary,  aes(xintercept = meanTSF),
-               colour="black", linetype = 3, size = 0.5) +
+               colour="black", linetype = 1, size = 0.5, alpha = 0.5) +
     geom_vline(data = trueFCSummary,  aes(xintercept = mean300),
-               colour="darkolivegreen", linetype = 3, size = 0.75) +
+               colour="darkolivegreen", linetype = 1, size = 0.5, alpha = 0.5) +
     geom_vline(data = trueFCSummary,  aes(xintercept = mean50),
-               colour="red3", linetype = 3, size = 0.75) +
-    scale_fill_manual("", values = c("black", "darkolivegreen", "red3")) +
+               colour="red4", linetype = 1, size = 0.5, alpha = 0.5) +
+    scale_fill_manual("", values = c("black", "darkolivegreen", "red4")) +
     labs(title = paste0("Realized fire activity for all 300-yrs simulations\n(",
                         nRep, " replicates per treatment)"),
      y = "Number of replicates\n",
@@ -240,7 +231,7 @@ hist_sim300 <- ggplot(df, aes(x = value, fill = variable)) +
 
 
 png(filename="realizedFC300.png",
-    width = 10, height = 7, units = "in", res = 600, pointsize=10)
+    width = 10, height = 6, units = "in", res = 600, pointsize=10)
 
     print(hist_sim300 +
               theme_bw() +

@@ -61,7 +61,7 @@ survivalBootstrap <- foreach(i = unique(tsfSample$ID), .combine="rbind",
     fc <- unique(df$fireCycle)
     treat <- unique(df$treatment)
     r <- unique(df$replicate)
-    #
+    #ssh -i "dcyr-AWS.pem" root@52.87.168.224
 
     tmp <- foreach(ss = sampleSize, .combine="rbind") %do% {
         # sampling true tsf
@@ -84,9 +84,9 @@ survivalBootstrap <- foreach(i = unique(tsfSample$ID), .combine="rbind",
             try(expBoot <- boot.ci(expBoot, type = m))
 
             ###
-            cox <- c(method = "cox", estimate = NA, ll = NA, ul = NA)
-            weib <- c(method = "weib", estimate = NA, ll = NA, ul = NA)
-            exp <- c(method = "exp", estimate = NA, ll = NA, ul = NA)
+            cox <- data.frame(method = "cox", estimate = NA, ll = NA, ul = NA)
+            weib <- data.frame(method = "weib", estimate = NA, ll = NA, ul = NA)
+            exp <- data.frame(method = "exp", estimate = NA, ll = NA, ul = NA)
 
             try(cox <- data.frame(method = "cox", estimate = coxBoot$t0,
                               ll = ifelse(class(coxBoot) =="bootci", coxBoot[[m]][4], NA),
@@ -100,12 +100,12 @@ survivalBootstrap <- foreach(i = unique(tsfSample$ID), .combine="rbind",
 
             tmp <- rbind(cox, weib, exp)
 
-            tmp <-data.frame(fireCycle = as.numeric(fc),
-                             treatment = treat,
-                             replicate = as.numeric(r),
-                             bootMethod = m,
-                             sampleSize = ss,
-                             round(tmp, 1))
+            tmp <- data.frame(fireCycle = as.numeric(fc),
+                              treatment = treat,
+                              replicate = as.numeric(r),
+                              bootMethod = m,
+                              sampleSize = ss,
+                              tmp)
             return(tmp)
 
         }
