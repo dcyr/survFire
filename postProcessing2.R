@@ -87,8 +87,8 @@ for (fc in unique(survivalBootstrap$fireCycle)) {
 
     ### residual summary (to plot mean values)
     residualsSummary <- df %>%
-        group_by(fireCycle, treatment, sampleSize, method) %>%
-        summarise(meanResidual = round(mean(residual),1))
+        group_by(fireCycle, treatment, sampleSize, method, bootMethod) %>%
+        summarise(meanResidual = round(mean(residual),8))
 
     ### Plot
     ciDensity <- ggplot(df, aes(x = residual, colour = method)) +
@@ -123,7 +123,7 @@ for (fc in unique(survivalBootstrap$fireCycle)) {
 coverageDf <- survivalBootstrap %>%
     mutate(ll = ll - estimate,
            ul = ul - estimate) %>%
-    group_by(fireCycle, treatment, sampleSize, method) %>%
+    group_by(fireCycle, treatment, sampleSize, method, bootMethod) %>%
     summarise(ll = mean(ll),
               ul = mean(ul))
 
@@ -133,18 +133,19 @@ coverageDf <- merge(survivalEstimates, coverageDf)
 #
 coverageSummary <- coverageDf %>%
     mutate(residualProp = estimate - trueFC300) %>%
-    group_by(fireCycle, treatment, sampleSize, method) %>%
-    summarise(coverage = sum(ll < residualProp & ul > residualProp)/n())
+    mutate(coverage = ll < residualProp & ul > residualProp) %>%
+    group_by(fireCycle, treatment, sampleSize, method, bootMethod) %>%
+    summarise(coverage = mean(coverage))
 
 # converting sampleSize back to numerical values
 coverageSummary$sampleSize <- as.numeric(gsub("sample size: ", "", coverageSummary$sampleSize))
 
 ### plotting
-coverageSummaryPlot <- ggplot(coverageSummary, aes(x = sampleSize, y = coverage, colour = method)) +
+coverageSummaryPlot <- ggplot(coverageSummary, aes(x = sampleSize, y = coverage, colour = method, linetype = bootMethod)) +
     facet_grid(fireCycle ~ treatment) +
     geom_hline(yintercept = 0.95, linetype = "dashed", size = 0.5, col = "black") +
     geom_line(size = 1) +
-    ylim(0, 1) +
+    ylim(0.5, 1) +
     scale_colour_manual(values = c("seagreen4", "goldenrod2", "indianred4")) +
     #?scale_colour_brewer(type = "qual") +
     scale_linetype_manual(values=c("dotted", "solid", "twodash")) +

@@ -28,8 +28,7 @@ tsfFinal <- get(load(paste(outputFolder, "tsfFinal.RData", sep="/")))
 # the following design took XhXXmin to run with 3 cores on my machine
 sampleSize <- c(25, 50, 75, 94, 150, 250, 500)
 replicates <- unique(tsfFinal$replicate)
-# bootMethod <- c("basic", "bca")
-bootMethod <- c("norm", "perc")
+bootMethod <- c("basic", "bca", "norm", "perc")
 nBootstrap <- 1000
 
 ## shrinking table to a collection of sample of maximum sample size
@@ -89,15 +88,15 @@ survivalBootstrap <- foreach(i = unique(tsfSample$ID), .combine="rbind",
             weib <- data.frame(method = "weib", estimate = NA, ll = NA, ul = NA)
             exp <- data.frame(method = "exp", estimate = NA, ll = NA, ul = NA)
 
-            try(cox <- data.frame(method = "cox", estimate = coxBoot$t0,
+            cox <- data.frame(method = "cox", estimate = coxBoot$t0,
                               ll = ifelse(class(coxBoot) =="bootci", coxBoot[[m]][4], NA),
-                              ul = ifelse(class(coxBoot) =="bootci", coxBoot[[m]][5], NA)))
-            try(weib <- data.frame(method = "weib", estimate = weibBoot$t0,
+                              ul = ifelse(class(coxBoot) =="bootci", coxBoot[[m]][5], NA))
+            weib <- data.frame(method = "weib", estimate = weibBoot$t0,
                                ll = ifelse(class(weibBoot) =="bootci", weibBoot[[m]][4], NA),
-                               ul = ifelse(class(weibBoot) =="bootci", weibBoot[[m]][5], NA)))
-            try(exp <- data.frame(method = "exp", estimate = expBoot$t0,
+                               ul = ifelse(class(weibBoot) =="bootci", weibBoot[[m]][5], NA))
+            exp <- data.frame(method = "exp", estimate = expBoot$t0,
                               ll = ifelse(class(expBoot) =="bootci", expBoot[[m]][4], NA),
-                              ul = ifelse(class(expBoot) =="bootci", expBoot[[m]][5], NA)))
+                              ul = ifelse(class(expBoot) =="bootci", expBoot[[m]][5], NA))
 
             tmp <- rbind(cox, weib, exp)
 
@@ -114,9 +113,8 @@ survivalBootstrap <- foreach(i = unique(tsfSample$ID), .combine="rbind",
     }
     return(tmp)
 }
-t2 <- Sys.time()
 stopCluster(cl)
+## a little cleaning up
 rownames(survivalBootstrap) <- 1:nrow(survivalBootstrap)
 ##
-print(t2-t1)
 save(survivalBootstrap, file = "survivalBootstrapFullDF.RData")
