@@ -29,6 +29,7 @@ tsfFinal <- get(load(paste(outputFolder, "tsfFinal.RData", sep="/")))
 sampleSize <- c(25, 50, 75, 94, 150, 250, 500)
 replicates <- unique(tsfFinal$replicate)
 bootMethod <- c("basic", "bca")
+# bootMethod <- c("norm", "perc")
 nBootstrap <- 1000
 
 ## shrinking table to a collection of sample of maximum sample size
