@@ -144,11 +144,11 @@ coverageSummary$sampleSize <- as.numeric(gsub("sample size: ", "", coverageSumma
 coverageSummaryPlot <- ggplot(coverageSummary, aes(x = sampleSize, y = coverage, colour = method, linetype = bootMethod)) +
     facet_grid(fireCycle ~ treatment) +
     geom_hline(yintercept = 0.95, linetype = "dashed", size = 0.5, col = "black") +
-    geom_line(size = 1) +
-    ylim(0.5, 1) +
+    geom_line(size = 0.5) +
+    ylim(0, 1) +
     scale_colour_manual(values = c("seagreen4", "goldenrod2", "indianred4")) +
-    #?scale_colour_brewer(type = "qual") +
-    scale_linetype_manual(values=c("dotted", "solid", "twodash")) +
+    # scale_colour_brewer(type = "qual") +
+    #scale_linetype_manual(values=c("dotted", "solid", "twodash")) +
     labs(title = paste0("Coverage rate of bootstrap 95% confidence intervals\n(10000 resampling)\n"),
          y = "Coverage rate\n",
          x = "\nSample size")
@@ -315,56 +315,165 @@ dev.off()
 
 
 
-# ################################################################################
-# ################################################################################
-# ######
-# ######      Fire-size distribution figure
-# ######
-# library(MASS)
-# ################################################################################
-# ################################################################################
-#
-# ### empirical reference
-# fireObs <- read.csv("../data/fireObs.csv", header=TRUE)
-# fireSizeObs <- fireObs[, "SIZE"]
-# fireSizeObs <- fireSizeObs[order(fireSizeObs)]
-# ### fitted fire size distribution
-# fireSizeFit <- fitdistr(fireSizeObs, "lognormal")
-# #########
-# xlim <- c(0, 100000)
-# options(scipen=7) ###force fixed notation (no scientific notation unless > 10E7 )
-#
-# png(filename = paste0("fireSizeCDF.png"),
-#     width = 4, height = 3.5, units = "in", res = 300, pointsize = 8,
-#     bg = "white")
-#
-#     ### fitted fire size cdf
-#     plot(plnorm(1:max(fireSizeObs), mean = fireSizeFit$estimate[1],
-#                  sdlog = fireSizeFit$estimate[2]),
-#          type = "l", xlim = xlim,
-#          main = "Fire size cumulative probability distribution",
-#          ylab = "Cumulative probability",
-#          xlab = "Fire size (ha)", lty = 3)
-#     ### empirical fire size cdf
-#     n <- length(fireSizeObs)
-#     lines(fireSizeObs, (1:n)/n, type = 's')
-#     ###
-#     legend(x = 0.7*xlim[2], y = 0.9,
-#            c("Empirical CDF", "Fitted CDF", "Individual fires"),
-#            lty = c(1, 3, 1), lwd = 1, col = c("black", "black", "indianred"),
-#            cex=0.75,
-#            bg="white")
-#     ###
-#     rug(fireSizeObs, ticksize = 0.03, side = 1, lwd = 1, col = "indianred")
-#     abline(h = c(0,1), lwd = 0.2, lty = 2, col = "grey")
-#
-# dev.off()
-# ######
-# ################################################################################
-# ################################################################################
-#
-#
-#
+################################################################################
+################################################################################
+######
+######      Fire-size distribution figure
+######
+library(MASS)
+################################################################################
+################################################################################
+
+### empirical reference
+fireObs <- read.csv("../data/fireObs.csv", header=TRUE)
+fireSizeObs <- fireObs[, "SIZE"]
+fireSizeObs <- fireSizeObs[order(fireSizeObs)]
+### fitted fire size distribution
+fireSizeFit <- fitdistr(fireSizeObs, "lognormal")
+#########
+xlim <- c(0, 100000)
+options(scipen=7) ###force fixed notation (no scientific notation unless > 10E7 )
+
+png(filename = paste0("fireSizeCDF.png"),
+    width = 4, height = 3.5, units = "in", res = 300, pointsize = 8,
+    bg = "white")
+
+    ### fitted fire size cdf
+    plot(plnorm(1:max(fireSizeObs), mean = fireSizeFit$estimate[1],
+                 sdlog = fireSizeFit$estimate[2]),
+         type = "l", xlim = xlim,
+         main = "Fire size cumulative probability distribution",
+         ylab = "Cumulative probability",
+         xlab = "Fire size (ha)", lty = 3)
+    ### empirical fire size cdf
+    n <- length(fireSizeObs)
+    lines(fireSizeObs, (1:n)/n, type = 's')
+    ###
+    legend(x = 0.7*xlim[2], y = 0.9,
+           c("Empirical CDF", "Fitted CDF", "Individual fires"),
+           lty = c(1, 3, 1), lwd = 1, col = c("black", "black", "indianred"),
+           cex=0.75,
+           bg="white")
+    ###
+    rug(fireSizeObs, ticksize = 0.03, side = 1, lwd = 1, col = "indianred")
+    abline(h = c(0,1), lwd = 0.2, lty = 2, col = "grey")
+
+dev.off()
+######
+################################################################################
+################################################################################
+
+################################################################################
+################################################################################
+######
+######      Example of landscape at time t=300
+######
+require(raster)
+require(dplyr)
+source("../scripts/simFnc.R")
+source("../scripts/censFnc.R")
+require(survival)
+################################################################################
+################################################################################
+fc <- 250
+treat <- 0
+r <- 1
+simDuration <- 300
+##
+initialLandscape <- raster(extent(0, 145000, 0, 145000), res=1000)
+initialLandscape[] <- round(rexp(ncell(initialLandscape), rate = 1/fc))
+initialLandscape[initialLandscape == 0] <- fc # removing zeros, remplace by fc
+
+output <- sim(initialLandscape, simDuration, fc, fireSizeFit,
+        corr = treat)
+
+tsf <- output[["tsf"]][[300]]
+tsf[tsf>=350] <- 349
+
+breaks <- c(0, 5, 10, 25, 50, 75, 100, 150, 200, 250, 300, 350)
+col <- colorRampPalette(c("red", "yellow", "darkgreen"))(length(breaks))
+
+tsfRat <- cut(tsf, breaks, right = F, ordered_result = T)
+survCens <- censFnc(values(tsf), 100, 300)
+cens <- matrix(survCens[,2], ncol = ncol(tsfRat), nrow = nrow(tsfRat))
+
+tsfCens <- tsf
+tsfCens[] <- survCens[,1]
+tsfRatCens <-  cut(tsfCens, breaks, right = F, ordered_result = T)
+breaks <- breaks[-(length(breaks))]
+
+
+
+png(filename = paste0("tsf300Example", fc, "_True.png"),
+    width = 7, height = 7, units = "in", res = 300, pointsize = 14,
+    bg = "white")
+
+
+    filled.contour2(x, y, as.matrix(tsfRat), key.extend = TRUE,
+                    color.palette = colorRampPalette(c("red", "yellow","darkolivegreen3", "darkolivegreen"), space = "rgb"),
+                    asp = 1,
+                    frame.plot = FALSE,
+                    plot.axes = {rect(11, 11, max(x-10), max(y-10), lwd = 2);},
+                    plot.title = title(main = "True time since last fire\n(years)"),
+                                       #xlab = "a)"),
+                    # xlab = "km", ylab = "km"),
+                    #                 plot.axes = { axis(1, seq(25, nrow(tsfRat), 25))
+                    #                     axis(2, seq(25, ncol(tsfRat), 25)) },
+                    nlevels = length(breaks),
+                    #key.title = title(main = "Time since\nfire"),
+                    key.axes = axis(4, 1:length(breaks), breaks))
+
+
+dev.off()
+
+png(filename = paste0("tsf300Example", fc, "_Min.png"),
+    width = 7, height = 7, units = "in", res = 300, pointsize = 14,
+    bg = "white")
+
+
+    filled.contour2(x, y, as.matrix(tsfRatCens), key.extend = FALSE,
+                    color.palette = colorRampPalette(c("red", "yellow","darkolivegreen3", "darkolivegreen"), space = "rgb"),
+                    asp = 1,
+                    frame.plot = FALSE,
+                    plot.axes = {rect(11, 11, max(x-10), max(y-10), lwd = 2);},
+                    plot.title = title(main = "Minimum time since last fire\n(with censoring)"),
+                                      # xlab = "b)"),
+                    # xlab = "km", ylab = "km"),
+                    #                 plot.axes = { axis(1, seq(25, nrow(tsfRat), 25))
+                    #                     axis(2, seq(25, ncol(tsfRat), 25)) },
+                    nlevels = length(breaks),
+                    #key.title = title(main = "Time since\nfire"),
+                    key.axes = axis(4, 1:length(breaks), breaks))
+
+
+dev.off()
+
+
+png(filename = paste0("tsf300Example", fc, "_Cens.png"),
+    width = 7, height = 7, units = "in", res = 300, pointsize = 14,
+    bg = "white")
+
+
+filled.contour2(x, y, t(cens), key.extend = FALSE,
+               #color.palette = colorRampPalette(c("red", "yellow","darkolivegreen3", "darkolivegreen"), space = "rgb"),
+               col = c("black", "white"),
+               asp = 1,
+               frame.plot = FALSE,
+               plot.axes = {rect(11, 11, max(x-10), max(y-10), lwd = 2);},
+               plot.title = title(main = "Censoring\n0: minimum TSF; 1: known TSF"),
+                #xlab = "c)"),
+               #                 plot.axes = { axis(1, seq(25, nrow(tsfRat), 25))
+               #                     axis(2, seq(25, ncol(tsfRat), 25)) },
+               nlevels = 2,
+               key.axes = axis(4, c(0.75, 0.25), c(1,0)))
+
+
+dev.off()
+
+
+
+
+    #
 # ################################################################################
 # ################################################################################
 # ######

@@ -3,8 +3,8 @@
 ####################################################################
 rm(list=ls())
 ####################################################################
-####################################################################
-# setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
+###################################################################
+setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
 outputFolder <- paste(getwd(), "compiledOutputs", sep="/")
 wwd <- paste(getwd(), Sys.Date(), sep="/")
 dir.create(wwd)
@@ -28,7 +28,7 @@ tsfFinal <- get(load(paste(outputFolder, "tsfFinal.RData", sep="/")))
 # the following design took XhXXmin to run with 3 cores on my machine
 sampleSize <- c(25, 50, 75, 94, 150, 250, 500)
 replicates <- unique(tsfFinal$replicate)
-bootMethod <- c("basic", "bca", "norm", "perc")
+bootMethod <- c("norm", "perc","bca", "basic")
 nBootstrap <- 1000
 
 ## shrinking table to a collection of sample of maximum sample size
@@ -51,7 +51,6 @@ if (sysName=="Linux") {
 
 ###
 registerDoSNOW(cl)
-t1 <- Sys.time()
 ###
 survivalBootstrap <- foreach(i = unique(tsfSample$ID), .combine="rbind",
                              .packages = c("survival", "boot", "dplyr", "foreach")) %dopar% {
@@ -70,33 +69,26 @@ survivalBootstrap <- foreach(i = unique(tsfSample$ID), .combine="rbind",
         tsf[tsf == 0] <- 0.1
         # applying censoring function
         tsf <- censFnc(tsf, 100, 300)
+        ##############################################
+        ### bootstrop estimation of FC from censored samples
+        coxBoot <- boot(as.matrix(tsf), statistic = coxFitFnc, R = nBootstrap, sim = "ordinary")
+        weibBoot <- boot(as.matrix(tsf), statistic = weibFitFnc, R = nBootstrap, sim = "ordinary")
+        expBoot <- boot(as.matrix(tsf), statistic = expFitFnc, R = nBootstrap, sim = "ordinary")
+
         tmp <- foreach(m = bootMethod, .combine="rbind") %do% {
-            ##############################################
-            ### bootstrop estimation of FC from censored samples
-            coxBoot <- boot(as.matrix(tsf), statistic = coxFitFnc, R = nBootstrap, sim = "ordinary")
-            weibBoot <- boot(as.matrix(tsf), statistic = weibFitFnc, R = nBootstrap, sim = "ordinary")
-            expBoot <- boot(as.matrix(tsf), statistic = expFitFnc, R = nBootstrap, sim = "ordinary")
-
-
             ### computing 95%CI (sometimes fails)
-            try(coxBoot <- boot.ci(coxBoot, type = m))
-            try(weibBoot <- boot.ci(weibBoot, type = m))
-            try(expBoot <- boot.ci(expBoot, type = m))
+            try(coxCI <- boot.ci(coxBoot, type = m))
+            try(weibCI <- boot.ci(weibBoot, type = m))
+            try(expCI <- boot.ci(expBoot, type = m))
 
             ###
-            cox <- data.frame(method = "cox", estimate = NA, ll = NA, ul = NA)
-            weib <- data.frame(method = "weib", estimate = NA, ll = NA, ul = NA)
-            exp <- data.frame(method = "exp", estimate = NA, ll = NA, ul = NA)
+            cox <- data.frame(method = "cox", estimate = round(coxBoot$t0,1), ll = NA, ul = NA)
+            weib <- data.frame(method = "weib", estimate = round(weibBoot$t0,1), ll = NA, ul = NA)
+            exp <- data.frame(method = "exp", estimate = round(expBoot$t0,1), ll = NA, ul = NA)
 
-            cox <- data.frame(method = "cox", estimate = coxBoot$t0,
-                              ll = ifelse(class(coxBoot) =="bootci", coxBoot[[m]][4], NA),
-                              ul = ifelse(class(coxBoot) =="bootci", coxBoot[[m]][5], NA))
-            weib <- data.frame(method = "weib", estimate = weibBoot$t0,
-                               ll = ifelse(class(weibBoot) =="bootci", weibBoot[[m]][4], NA),
-                               ul = ifelse(class(weibBoot) =="bootci", weibBoot[[m]][5], NA))
-            exp <- data.frame(method = "exp", estimate = expBoot$t0,
-                              ll = ifelse(class(expBoot) =="bootci", expBoot[[m]][4], NA),
-                              ul = ifelse(class(expBoot) =="bootci", expBoot[[m]][5], NA))
+            try(cox[,c("ll", "ul")] <- round(t(sapply(coxCI[-(1:3)],function(x) tail(c(x),2))),1))
+            try(weib[,c("ll", "ul")] <- round(t(sapply(weibCI[-(1:3)],function(x) tail(c(x),2))),1))
+            try(exp[,c("ll", "ul")] <- round(t(sapply(expCI[-(1:3)],function(x) tail(c(x),2))),1))
 
             tmp <- rbind(cox, weib, exp)
 

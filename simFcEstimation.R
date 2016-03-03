@@ -4,7 +4,7 @@
 rm(list=ls())
 ####################################################################
 ####################################################################
-# setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
+setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
 outputFolder <- paste(getwd(), "compiledOutputs", sep="/")
 wwd <- paste(getwd(), Sys.Date(), sep="/")
 dir.create(wwd)
@@ -38,7 +38,6 @@ if (sysName=="Linux") {
 }
 
 registerDoSNOW(cl)
-t1 <- Sys.time()
 survivalEstimates <- foreach(fc = unique(tsfFinal$fireCycle), .combine="rbind") %do% {
     # filtering by fireCycle
     trueTSF1 <- tsfFinal %>%
@@ -65,18 +64,34 @@ survivalEstimates <- foreach(fc = unique(tsfFinal$fireCycle), .combine="rbind") 
                     # applying censoring function
                     tsf <- censFnc(tsf, 100, 300)
                     ### estimating FC from censored samples
-                    cox <- coxFitFnc(tsf)$cycle
-                    weib <- weibFitFnc(tsf)$cycle
-                    exp <- expFitFnc(tsf)$cycle
+                    cox <- coxFitFnc(tsf)
+                    weib <- weibFitFnc(tsf)
+                    exp <- expFitFnc(tsf)
                     # estimating FC from uncensored samples
-                    coxUncensored <- coxFitFnc(tsfUncensored)$cycle
-                    weibUncensored <- weibFitFnc(tsfUncensored)$cycle
-                    expUncensored <- expFitFnc(tsfUncensored)$cycle
+                    coxUncensored <- coxFitFnc(tsfUncensored)
+                    weibUncensored <- weibFitFnc(tsfUncensored)
+                    expUncensored <- expFitFnc(tsfUncensored)
                     #
                     tmp <- data.frame(cox, weib, exp, coxUncensored, weibUncensored, expUncensored)
                     return(round(tmp, 1))
 
                 }
+#                 #### testing methods
+#                 ## gotta load survivalBootstrap first
+#                 trueFC <- as.numeric(unique(survivalBootstrap %>%
+#                     filter(fireCycle == fc,
+#                            treatment == as.character(treat),
+#                            replicate == r) %>%
+#                     select( trueFC300)))
+#
+#                 plot(density(tmp$cox), col = "seagreen4")#, breaks = 20)
+#                 lines(density(tmp$coxUncensored), col = "seagreen4", lty=3)#, breaks = 20)
+#                 #lines(density(tmp$weib), col = "goldenrod2")
+#                 #lines(density(tmp$exp), col = "indianred4")
+#                 abline(v = trueFC)#, breaks = 20)
+#                 abline(v = mean(tmp$cox), col = "seagreen4")#, breaks = 20)
+#                 abline(v = mean(tmp$coxUncensored), col = "seagreen4", lty = 3)#, breaks = 20)
+#
                 tmp <- data.frame(fireCycle = as.numeric(fc),
                                     treatment = treat,
                                     replicate = as.numeric(r),
