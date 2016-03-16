@@ -4,7 +4,7 @@
 rm(list=ls())
 ####################################################################
 ####################################################################
-#setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
+ setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
 wwd <- paste(getwd(), Sys.Date(), sep="/")
 dir.create(wwd)
 setwd(wwd)
@@ -20,9 +20,6 @@ library(raster)
 ####################################################################
 initialLandscape <- raster(extent(0, 145000, 0, 145000), res=1000)
 initialLandscape[] <- NA
-
-## convertion from pixel to hectares
-scaleFactor <- prod(res(initialLandscape))/10000
 
 ####################################################################
 ####################################################################

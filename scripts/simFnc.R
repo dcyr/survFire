@@ -1,6 +1,7 @@
 ####################################################################
 ####################################################################
-###### simulations function
+###### Simulation function
+###### Dominic Cyr
 ####################################################################
 ####################################################################
 
@@ -9,9 +10,7 @@ sim <- function(initialLandscape, simDuration, fireCycle, fireSizeFit,
                 corr = 0) {
 
 
-    if(abs(corr)>0.9) stop("correlation should be between -0.5 and 0.5")
-
-   # coeff <- timeXfireCorr * 2
+    if(abs(corr)>0.75) stop("correlation should be between -0.75 and 0.75")
 
     require(raster)
     source("../scripts/fireSpreadFnc.R")
@@ -30,7 +29,7 @@ sim <- function(initialLandscape, simDuration, fireCycle, fireSizeFit,
     fAAB <- 1 / fireCycle
 
     ########
-    ### fire size distrib
+    ### fire size distribution
     estimates <- names(fireSizeFit$estimate)
     if (estimates == "rate") {
         distribType <- "exp"
@@ -43,18 +42,17 @@ sim <- function(initialLandscape, simDuration, fireCycle, fireSizeFit,
     }
 
     ########
-    ### fire sequence (annually)
+    ### Fire sequence (annually)
     nFiresMean <- fAAB * sum(is.na(values(initialLandscape))==FALSE) * scaleFactor / fireSizeMean
-
+    ### Generate a yearly sequence of number of fires
     nFireSequence <- rpois(lambda = nFiresMean, n =simDuration)
 
-    # ordering sequence, then permutating until desired correlation is achieved
-    if (!(corr == 0)) {
 
+    if (!(corr == 0)) { # Imposing correlation between number of fires and sim year
+        # Ordering sequence, then permutating until desired correlation is achieved
         repeat {
             nFireSequence <- nFireSequence[order(nFireSequence,
                                                  decreasing = ifelse(corr > 0, F, T))]
-
             corrTmp <- cor(nFireSequence, 1:simDuration)
 
             iter <- 1
@@ -64,9 +62,9 @@ sim <- function(initialLandscape, simDuration, fireCycle, fireSizeFit,
                 #nFireSequence[i[2]] <- nFireSequence[i[1]]
                 corrTmp <- cor(nFireSequence, 1:simDuration)
                 iter <- iter+1
-                if (iter > 1000) break
+                if (iter > 1000) break # in case algo misses target correlation
             }
-            if  (abs(corrTmp - corr)<0.01) break
+            if  (abs(corrTmp - corr) < 0.01) break  # This acceptable difference may need to be larger when simDuration is small
         }
     }
 
@@ -115,10 +113,10 @@ sim <- function(initialLandscape, simDuration, fireCycle, fireSizeFit,
     }
     ## preparing outputs
     output <- list()
-    if (outputFire){
+    if (outputFire){ ### these outputs record all individual fires (larger)
         output[["fires"]] <- fires
     }
-    if (outputTSF){
+    if (outputTSF){ ### these outputs record TSF maps
         output[["tsf"]] <- stack(timeSinceFire)
     }
     return(output)

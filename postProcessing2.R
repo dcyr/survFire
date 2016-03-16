@@ -73,99 +73,105 @@ survivalBootstrap$sampleSize <- factor(paste("sample size:", survivalBootstrap$s
 # method
 levels(survivalEstimates$method) <-
     levels(survivalBootstrap$method) <- c("Cox", "Weibull", "Exponential")
-
-### plot distribution (suppl. material)
-for (fc in unique(survivalBootstrap$fireCycle)) {
-    fcNum <- as.numeric(gsub("-yrs. FC", "", fc))
-    # plot distribution
-    df <- survivalBootstrap %>%
-        #filter(treatment == 0) %>%
-        filter(fireCycle == fc) %>%
-        mutate(residual = estimate - trueFC300)
-
-    df <- droplevels(df)
-
-    ### residual summary (to plot mean values)
-    residualsSummary <- df %>%
-        group_by(fireCycle, treatment, sampleSize, method, bootMethod) %>%
-        summarise(meanResidual = round(mean(residual),8))
-
-    ### Plot
-    ciDensity <- ggplot(df, aes(x = residual, colour = method)) +
-        geom_vline(xintercept = 0, colour="grey", linetype = 3, size = 0.75) +
-        stat_density(geom="line", position="identity", size = 1) +
-        xlim(-fcNum, fcNum) +
-        facet_grid(sampleSize ~ treatment, scales = "free_y") +
-
-        geom_vline(data = residualsSummary,  aes(xintercept = meanResidual, colour = method),
-                   linetype = 3, size = 1) +
-        scale_colour_manual(values = mColors) +
-        #scale_colour_brewer(type = "qual") +
-        labs(title = paste0("Distribution of bootstrap resampled fire cycle estimates\n(residuals; ", fcNum, "; n = 10000)"),
-             y = "Density\n",
-             x = "Residuals\nEstimated FC - True value (years)")
-
-    ### Printing plot
-    png(filename = paste0("coverageDensity_", fcNum, "UnCensored.png"),
-        width = 10, height = 10, units = "in", res = 600, pointsize=10)
-
-        print(ciDensity +
-                  theme_bw() +
-                  theme(legend.position="top", legend.direction="horizontal",
-                        axis.text.x = element_text(angle = 45, hjust = 1),
-                        strip.text.y = element_text(size = 8))) #, palette = 1, direction = 1)
-
-    dev.off()
-}
-
-
-### computing bootstrap 95CI
-coverageDf <- survivalBootstrap %>%
-    mutate(ll = ll - estimate,
-           ul = ul - estimate) %>%
-    group_by(fireCycle, treatment, sampleSize, method, bootMethod) %>%
-    summarise(ll = mean(ll),
-              ul = mean(ul))
-
-### computing coverage rate
-coverageDf <- merge(survivalEstimates, coverageDf)
+#
+# ### plot distribution (suppl. material)
+# for (fc in unique(survivalBootstrap$fireCycle)) {
+#     fcNum <- as.numeric(gsub("-yrs. FC", "", fc))
+#     # plot distribution
+#     df <- survivalBootstrap %>%
+#         #filter(treatment == 0) %>%
+#         filter(fireCycle == fc) %>%
+#         mutate(residual = estimate - trueFC300)
+#
+#     df <- droplevels(df)
+#
+#     ### residual summary (to plot mean values)
+#     residualsSummary <- df %>%
+#         group_by(fireCycle, treatment, sampleSize, method, bootMethod) %>%
+#         summarise(meanResidual = round(mean(residual),8))
+#
+#     ### Plot
+#     ciDensity <- ggplot(df, aes(x = residual, colour = method)) +
+#         geom_vline(xintercept = 0, colour="grey", linetype = 3, size = 0.75) +
+#         stat_density(geom="line", position="identity", size = 1) +
+#         xlim(-fcNum, fcNum) +
+#         facet_grid(sampleSize ~ treatment, scales = "free_y") +
+#
+#         geom_vline(data = residualsSummary,  aes(xintercept = meanResidual, colour = method),
+#                    linetype = 3, size = 1) +
+#         scale_colour_manual(values = mColors) +
+#         #scale_colour_brewer(type = "qual") +
+#         labs(title = paste0("Distribution of bootstrap resampled fire cycle estimates\n(residuals; ", fcNum, "; n = 10000)"),
+#              y = "Density\n",
+#              x = "Residuals\nEstimated FC - True value (years)")
+#
+#     ### Printing plot
+#     png(filename = paste0("coverageDensity_", fcNum, ".png"),
+#         width = 10, height = 10, units = "in", res = 600, pointsize=10)
+#
+#         print(ciDensity +
+#                   theme_bw() +
+#                   theme(legend.position="top", legend.direction="horizontal",
+#                         axis.text.x = element_text(angle = 45, hjust = 1),
+#                         strip.text.y = element_text(size = 8))) #, palette = 1, direction = 1)
+#
+#     dev.off()
+# }
 
 #
-coverageSummary <- coverageDf %>%
-    mutate(residualProp = estimate - trueFC300) %>%
-    mutate(coverage = ll < residualProp & ul > residualProp) %>%
-    group_by(fireCycle, treatment, sampleSize, method, bootMethod) %>%
-    summarise(coverage = mean(coverage))
-
-# converting sampleSize back to numerical values
-coverageSummary$sampleSize <- as.numeric(gsub("sample size: ", "", coverageSummary$sampleSize))
-
-### plotting
-coverageSummaryPlot <- ggplot(coverageSummary, aes(x = sampleSize, y = coverage, colour = method, linetype = bootMethod)) +
-    facet_grid(fireCycle ~ treatment) +
-    geom_hline(yintercept = 0.95, linetype = "dashed", size = 0.5, col = "black") +
-    geom_line(size = 0.5) +
-    ylim(0, 1) +
-    scale_colour_manual(values = c("seagreen4", "goldenrod2", "indianred4")) +
-    # scale_colour_brewer(type = "qual") +
-    #scale_linetype_manual(values=c("dotted", "solid", "twodash")) +
-    labs(title = paste0("Coverage rate of bootstrap 95% confidence intervals\n(10000 resampling)\n"),
-         y = "Coverage rate\n",
-         x = "\nSample size")
-
-
-### printing plot
-png(filename = paste0("coverageUncensored.png"),
-    width = 10, height = 6, units = "in", res = 600, pointsize=10)
-
-    print(coverageSummaryPlot +
-              theme_bw())# +
-              #theme(axis.text.x = element_text(angle = 45, hjust = 1),
-              #      #legend.position="right", legend.direction="horizontal",
-              #      strip.text.y = element_text(size = 10))) #, palette = 1, direction = 1)
-
-dev.off()
-
+# ### computing bootstrap 95CI
+# coverageDf <- survivalBootstrap %>%
+#     mutate(ll = ll - estimate,
+#            ul = ul - estimate) %>%
+#     group_by(fireCycle, treatment, sampleSize, method, bootMethod) %>%
+#     summarise(ll = mean(ll),
+#               ul = mean(ul))
+#
+# ### computing coverage rate
+# coverageDf <- merge(survivalEstimates, coverageDf)
+#
+# #
+# coverageSummary <- coverageDf %>%
+#     mutate(residualProp = estimate - trueFC300) %>%
+#     mutate(coverage = ll < residualProp & ul > residualProp) %>%
+#     group_by(fireCycle, treatment, sampleSize, method, bootMethod) %>%
+#     summarise(coverage = mean(coverage))
+#
+# # converting sampleSize back to numerical values
+# coverageSummary$sampleSize <- as.numeric(gsub("sample size: ", "", coverageSummary$sampleSize))
+#
+# # reordering levels
+# coverageSummary$bootMethod <- factor(coverageSummary$bootMethod, levels = c("basic", "bca", "norm", "perc"))
+#
+#
+#
+# ### plotting
+# coverageSummaryPlot <- ggplot(coverageSummary, aes(x = sampleSize, y = coverage, colour = method, linetype = bootMethod)) +
+#     facet_grid(fireCycle ~ treatment) +
+#     geom_hline(yintercept = 0.95, linetype = "dashed", size = 0.5, col = "black") +
+#     geom_line(size = 0.5) +
+#     ylim(0, 1) +
+#     scale_colour_manual(name = "Survival model",
+#                         values = c("seagreen4", "goldenrod2", "indianred4")) +
+#     # scale_colour_brewer(type = "qual") +
+#     scale_linetype_manual(values = 1:4, guide = guide_legend(title = "Type of CI", reverse = T)) + #c("dotted", "solid", "twodash")) +
+#     labs(title = paste0("Coverage rate of bootstrap 95% confidence intervals\n(10000 resampling)\n"),
+#          y = "Coverage rate\n",
+#          x = "\nSample size")
+#
+#
+# ### printing plot
+# png(filename = paste0("coverage.png"),
+#     width = 10, height = 6, units = "in", res = 600, pointsize=10)
+#
+#     print(coverageSummaryPlot +
+#               theme_bw())# +
+#               #theme(axis.text.x = element_text(angle = 45, hjust = 1),
+#               #      #legend.position="right", legend.direction="horizontal",
+#               #      strip.text.y = element_text(size = 10))) #, palette = 1, direction = 1)
+#
+# dev.off()
+#
 
 ################################################################################
 ################################################################################
@@ -196,18 +202,19 @@ trueFCSummary <- trueFC %>%
 ###
 df <- melt(trueFC, id.vars = c("fireCycle", "treatment", "replicate"),
             measure.vars = c("trueFC50", "trueFC150", "trueFC300", "meanTSF"))
-df <- df %>%
-    filter(variable != "trueFC150")
+# df <- df %>%
+#     filter(variable != "trueFC150")
 df <- droplevels(df)
 
 ### renaming / reordering levels for nicer plotting
 
 ###
-df$variable <- factor(df$variable, levels = c("meanTSF", "trueFC300", "trueFC50"))
+df$variable <- factor(df$variable, levels = c("meanTSF", "trueFC300", "trueFC150", "trueFC50"))
 df$variable <- factor(as.numeric(df$variable))
 levels(df$variable) <- c("Final mean TSF  ",
-                          "True FC (entire simulation)  ",
-                          "True FC (last 50 years)  ")
+                         "True FC (entire simulation)  ",
+                         "True FC (last 150 years)  ",
+                         "True FC (last 50 years)  ")
 
 
 #################
@@ -219,12 +226,14 @@ hist_sim300 <- ggplot(df, aes(x = value, fill = variable)) +
     facet_grid(treatment ~ fireCycle, scales = "free_x") +
     scale_x_log10(breaks = c(30, 62.5, 125, 250, 500, 1000, 2000, 4000)) +
     geom_vline(data = trueFCSummary,  aes(xintercept = meanTSF),
-               colour="black", linetype = 1, size = 0.5, alpha = 0.5) +
+               colour="black", linetype = 3, size = 0.5, alpha = 1) +
     geom_vline(data = trueFCSummary,  aes(xintercept = mean300),
-               colour="darkolivegreen", linetype = 1, size = 0.5, alpha = 0.5) +
+               colour="darkolivegreen", linetype = 3, size = 0.5, alpha = 1) +
+    geom_vline(data = trueFCSummary,  aes(xintercept = mean150),
+               colour="darkgoldenrod", linetype = 3, size = 0.5, alpha = 1) +
     geom_vline(data = trueFCSummary,  aes(xintercept = mean50),
-               colour="red4", linetype = 1, size = 0.5, alpha = 0.5) +
-    scale_fill_manual("", values = c("black", "darkolivegreen", "red4")) +
+               colour="red4", linetype = 3, size = 0.5, alpha = 1) +
+    scale_fill_manual("", values = c("black", "darkolivegreen", "darkgoldenrod", "red4")) +
     labs(title = paste0("Realized fire activity for all 300-yrs simulations\n(",
                         nRep, " replicates per treatment)"),
      y = "Number of replicates\n",
@@ -237,7 +246,8 @@ png(filename="realizedFC300.png",
     print(hist_sim300 +
               theme_bw() +
               theme(legend.position="top", legend.direction="horizontal",
-                    axis.text.x = element_text(angle = 45, hjust = 1)))
+                    axis.text.x = element_text(angle = 45, hjust = 1),
+                    strip.text.y = element_text(size = 8)))
 
 dev.off()
 
@@ -372,6 +382,7 @@ require(raster)
 require(dplyr)
 source("../scripts/simFnc.R")
 source("../scripts/censFnc.R")
+source("../scripts/filled.contour2.R")
 require(survival)
 ################################################################################
 ################################################################################
@@ -385,7 +396,7 @@ initialLandscape[] <- round(rexp(ncell(initialLandscape), rate = 1/fc))
 initialLandscape[initialLandscape == 0] <- fc # removing zeros, remplace by fc
 
 output <- sim(initialLandscape, simDuration, fc, fireSizeFit,
-        corr = treat)
+        corr = treat, outputFire = T)
 
 tsf <- output[["tsf"]][[300]]
 tsf[tsf>=350] <- 349
@@ -402,12 +413,12 @@ tsfCens[] <- survCens[,1]
 tsfRatCens <-  cut(tsfCens, breaks, right = F, ordered_result = T)
 breaks <- breaks[-(length(breaks))]
 
-
+x <- 1:nrow(tsf)
+y <- 1:ncol(tsf)
 
 png(filename = paste0("tsf300Example", fc, "_True.png"),
     width = 7, height = 7, units = "in", res = 300, pointsize = 14,
     bg = "white")
-
 
     filled.contour2(x, y, as.matrix(tsfRat), key.extend = TRUE,
                     color.palette = colorRampPalette(c("red", "yellow","darkolivegreen3", "darkolivegreen"), space = "rgb"),
@@ -423,8 +434,8 @@ png(filename = paste0("tsf300Example", fc, "_True.png"),
                     #key.title = title(main = "Time since\nfire"),
                     key.axes = axis(4, 1:length(breaks), breaks))
 
-
 dev.off()
+
 
 png(filename = paste0("tsf300Example", fc, "_Min.png"),
     width = 7, height = 7, units = "in", res = 300, pointsize = 14,
@@ -454,115 +465,18 @@ png(filename = paste0("tsf300Example", fc, "_Cens.png"),
     bg = "white")
 
 
-filled.contour2(x, y, t(cens), key.extend = FALSE,
-               #color.palette = colorRampPalette(c("red", "yellow","darkolivegreen3", "darkolivegreen"), space = "rgb"),
-               col = c("black", "white"),
-               asp = 1,
-               frame.plot = FALSE,
-               plot.axes = {rect(11, 11, max(x-10), max(y-10), lwd = 2);},
-               plot.title = title(main = "Censoring\n0: minimum TSF; 1: known TSF"),
-                #xlab = "c)"),
-               #                 plot.axes = { axis(1, seq(25, nrow(tsfRat), 25))
-               #                     axis(2, seq(25, ncol(tsfRat), 25)) },
-               nlevels = 2,
-               key.axes = axis(4, c(0.75, 0.25), c(1,0)))
+    filled.contour2(x, y, t(cens), key.extend = FALSE,
+                   #color.palette = colorRampPalette(c("red", "yellow","darkolivegreen3", "darkolivegreen"), space = "rgb"),
+                   col = c("black", "white"),
+                   asp = 1,
+                   frame.plot = FALSE,
+                   plot.axes = {rect(11, 11, max(x-10), max(y-10), lwd = 2);},
+                   plot.title = title(main = "Censoring\n0: minimum TSF; 1: known TSF"),
+                    #xlab = "c)"),
+                   #                 plot.axes = { axis(1, seq(25, nrow(tsfRat), 25))
+                   #                     axis(2, seq(25, ncol(tsfRat), 25)) },
+                   nlevels = 2,
+                   key.axes = axis(4, c(0.75, 0.25), c(1,0)))
 
 
 dev.off()
-
-
-
-
-    #
-# ################################################################################
-# ################################################################################
-# ######
-# ######      2000-yrs constant fc simulations
-# ######
-# require(dplyr)
-# require(zoo) ### for 'rollmean'
-# ################################################################################
-# ################################################################################
-#
-# ####################################################################
-# ######  true fire cycle statistics computation
-# output <- get(load(paste(outputFolder, "simOutputCompiled2000.RData", sep="/")))
-# ######
-#
-# output <- output %>%
-#     filter(replicate == 1) %>%
-#     mutate(id = paste0(fireCycle, replicate, treatment))
-# output$treatment <- as.factor(output$treatment)
-#
-# output <- output %>%
-#     arrange(year, fireCycle)
-#
-# trueFCNames <- c("trueFC50", "trueFC150", "trueFC300")
-# output[, trueFCNames] <- NA
-#
-# trueFC <- list()
-# for (fc in unique(output$fireCycle)) {
-#     trueFC[[fc]] <- output %>%
-#         filter(fireCycle == fc)
-#     year <- trueFC[[fc]]$year
-#     aab <- trueFC[[fc]]$areaBurned_ha
-#     ###
-#     trueFC[[fc]][,"trueFC50"] <- totalArea/rollmean(aab, 50, align = "right", fill = NA)
-#     trueFC[[fc]][,"trueFC150"] <- totalArea/rollmean(aab, 150, align = "right", fill = NA)
-#     trueFC[[fc]][,"trueFC300"] <- totalArea/rollmean(aab, 300, align = "right", fill = NA)
-# }
-#
-#
-# ####################################################################
-# ######  plotting 2000-yrs simulation examples
-#
-# yLimAAB <- c(0, max(as.numeric(lapply(trueFC, function(x) max(x$areaBurned_ha)))))
-#
-# for (fc in c(62.5, 125, 250, 500, 1000)) {
-#     df <- trueFC[[fc]]
-#     x <- df$year
-#     meanTSF <- df$meanTSF
-#     FC50 <- df$trueFC50
-#     FC150 <- df$trueFC150
-#     FC300 <- df$trueFC300
-#     aab <- df$areaBurned_ha
-#     ###
-#     realizedFC <- totalArea/mean(aab)
-#
-#
-#     png(filename = paste0("simTrueTSF", fc, ".png"),
-#         width = 8, height = 5, units = "in", res = 300, pointsize = 8,
-#         bg = "white")
-#
-#         #########
-#         par(mfrow=c(2,1), mar=c(0,4,3,1))
-#         options(scipen=7) ###force fixed notation (no scientific notation unless > 10E7 )
-#         #
-#         plot(x = x, y = aab, type="l", ylab="Annual area burned (ha)", xaxt="n", lwd=0.5, xlim=c(0,2000), ylim=yLimAAB)
-#         abline(v = seq(from=0, to=2000, by= 100), col = "gray", lty=3, lwd=.5)
-#         grid(col="gray", lty=3, lwd=.8)
-#         #
-#         text(max(x), y = yLimAAB[2]*.98, paste("Realized fire cycle (entire simulation) :", round(realizedFC, 1), "years"), adj = c(1,1), cex=1)
-#         text(max(x), y = yLimAAB[2]*.92, paste("Mean percent annual area burned :", round(100*1/realizedFC, 2), "%"), adj = c(1,1), cex=1)
-#         ###
-#         par(mar=c(5,4,0,1))
-#         ylim <- c(0,(realizedFC*3.5))
-#         #ylimits <- c(0, 300)
-#         plot(meanTSF, type="l", lwd=4, lty=1, col="black", ylab="Mean time since fire / True fire cycle", xlab="Simulated years", ylim=ylim)
-#         abline(v = seq(from=0, to=2000, by= 100), col = "gray", lty=3, lwd=.5)
-#         grid(col="gray", lty=3, lwd=.8)
-#         abline(h=realizedFC, lty=1, lwd=1, col="black")
-#         lines(FC50, lty=1, lwd=2, col="red3")
-#         lines(FC150, lty=1, lwd=2, col="dodgerblue2")
-#         lines(FC300, lty=1, lwd=2, col="darkolivegreen")
-#         legend(0, ylim[2],
-#                c("True mean TSF", "True FC (past 50 years)", "True FC (past 150 years)", "True FC (past 300 years)"),
-#                lty = 1, lwd = c(4,2,2,2), col = c("black", "red3", "dodgerblue2", "darkolivegreen"),
-#                cex=1,
-#                bg="white")
-#
-#     dev.off()
-# }
-# ######
-# ################################################################################
-# ################################################################################

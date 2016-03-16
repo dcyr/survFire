@@ -8,10 +8,10 @@
 ################################################################################
 
 fireSpread <- function(eligible, w = NULL,
-                       fireSize, probSpread =  0.32) { #tsf <- initialLandscape (fireSize in ha)
-                                                                        ###  can be a vector)
+                       fireSize, probSpread =  0.32) {
+
     require(raster)
-    scaleFactor <- prod(res(eligible)/100) # convert pixels into hectares
+    scaleFactor <- prod(res(eligible) / 100) # convert pixels into hectares
 
     ##default propagation kernel ("queen's case")
     if(is.null(w))  {
@@ -19,6 +19,7 @@ fireSpread <- function(eligible, w = NULL,
     }
 
     f <- eligible
+
     fArea <- list()
     for (i in seq_along(fireSize)) {
         f[] <- 0
@@ -38,7 +39,7 @@ fireSpread <- function(eligible, w = NULL,
             # substraction those that already burned
             fireNeighbour <- fireNeighbour - (f>0)
             indices <- which(values(fireNeighbour) == 1)
-            ## remove pixels that already burned
+            ### remove pixels that already burned
             indices <- setdiff(indices, which(values(eligible) == 0))
             ### fire spread
             # burning only a proportion of neighbours
@@ -57,9 +58,8 @@ fireSpread <- function(eligible, w = NULL,
             fireFront[] <- 0
             # updating fire front for next iteration
             fireFront[indices] <- 1 ## area burned in the current time step
-            ## updating fire size
+            ## updating current fire size
             fSize <- fSize + length(indices)*scaleFactor
-
             # record iteration on raster
             f[f>0] <- f[f>0] + 1
         }
