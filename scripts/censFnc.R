@@ -1,6 +1,13 @@
-#########
-### censoring function
-#########
+#######################################
+#######################################
+######## Censoring function
+########
+######## Simulates loss of information (TSF) due to forest aging
+########
+######## Dominic Cyr
+#######################################
+#######################################
+
 censFnc <- function(x, min, max) {
     time <-runif(length(x), min = min, max = max)
     cens <- as.numeric(x<time)

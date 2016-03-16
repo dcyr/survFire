@@ -7,7 +7,7 @@ require(reshape2)
 require(zoo)
 ################################################################################
 ################################################################################
-setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
+# setwd("/media/dcyr/Windows7_OS/Travail/SCF/fcEstimationExp")
 outputFolder <- paste(getwd(), "compiledOutputs", sep="/")
 wwd <- paste(getwd(), Sys.Date(), sep="/")
 dir.create(wwd)

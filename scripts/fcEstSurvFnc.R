@@ -1,5 +1,9 @@
 #######################################
+#######################################
 ######## fire cycle estimation survival function
+########
+######## Dominic Cyr
+#######################################
 #######################################
 
 expFitFnc <- function(x, ind = NULL) {        ### negative exponential fitting
