@@ -1,5 +1,5 @@
 # Simulation and data processing pipeline
-Dominic Cyr  
+[Dominic Cyr][5]
 
 Updated on Mar 18 2016
 

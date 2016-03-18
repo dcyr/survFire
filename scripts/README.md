@@ -1,5 +1,6 @@
 # Fire cycle estimation functions (and other scripts)
 Dominic Cyr  
+[Dominic Cyr][5]
 
 Updated on Mar 18 2016
 
@@ -73,7 +74,7 @@ coxCI
 ## 
 ## Intervals : 
 ## Level       BCa          
-## 95%   (160.6, 386.3 )  
+## 95%   (162.6, 413.0 )  
 ## Calculations and Intervals on Original Scale
 ## Some BCa intervals may be unstable
 ```
@@ -97,7 +98,7 @@ coxCI
 ## 
 ## Intervals : 
 ## Level       BCa          
-## 90%   (174.3, 374.9 )  
+## 90%   (176.7, 383.0 )  
 ## Calculations and Intervals on Original Scale
 ```
 
@@ -109,8 +110,8 @@ coxEstimate
 ```
 
 ```
-##   estimate    ll    ul
-## 1      229 174.3 374.9
+##   estimate    ll  ul
+## 1      229 176.7 383
 ```
 
 

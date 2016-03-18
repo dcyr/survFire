@@ -1,5 +1,6 @@
 # Accuracy and precision of three survival-based methods for estimating fire cycle from dendroecological data
-Dominic Cyr  
+
+[Dominic Cyr][5]
 
 Updated on Mar 18 2016
 
