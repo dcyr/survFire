@@ -1,5 +1,15 @@
 ####################################################################
 ####################################################################
+######
+######  Simulation of  dendroecological sampling and FC estimation
+######
+######  Indicates which simulation output files to process,
+######  with which methods, sampling effort and number of trials.
+######
+######  Set censoring function inputs
+######
+######  Dominic Cyr
+####################################################################
 ####################################################################
 rm(list=ls())
 ####################################################################
@@ -22,7 +32,7 @@ source("../scripts/censFnc.R")
 source("../scripts/fcEstSurvFnc.R")
 ############################################
 tsfFinal <- get(load(paste(outputFolder, "tsfFinal.RData", sep="/")))
-# the following design took 2h40min to run with 3 cores on my machine
+###
 sampleSize <- c(25, 50, 75, 94, 150, 250, 500)
 nTrials <- 100
 ###

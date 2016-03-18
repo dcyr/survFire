@@ -1,2 +1,9 @@
 .Rhistory
+[0-9]*
+outputs
+*.Rmd
+*.html
+manuscript
+old
+*~
 

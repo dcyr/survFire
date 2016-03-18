@@ -2,8 +2,8 @@
 ####################################################################
 ###### Simulation pilot
 ######
-###### Prepare simulation inputs
-###### Deploy experimental designS
+###### Prepares simulation inputs
+###### Deploys experimental design
 ######
 ###### Dominic Cyr
 ####################################################################
