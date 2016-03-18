@@ -73,7 +73,7 @@ coxCI
 ## 
 ## Intervals : 
 ## Level       BCa          
-## 95%   (161.3, 414.0 )  
+## 95%   (160.6, 386.3 )  
 ## Calculations and Intervals on Original Scale
 ## Some BCa intervals may be unstable
 ```
@@ -97,7 +97,7 @@ coxCI
 ## 
 ## Intervals : 
 ## Level       BCa          
-## 90%   (175.1, 381.9 )  
+## 90%   (174.3, 374.9 )  
 ## Calculations and Intervals on Original Scale
 ```
 
@@ -110,7 +110,7 @@ coxEstimate
 
 ```
 ##   estimate    ll    ul
-## 1      229 175.1 381.9
+## 1      229 174.3 374.9
 ```
 
 
@@ -120,7 +120,7 @@ Don't hesitate to contact me should you have questions, comments or suggestions 
 [Dominic Cyr][5]
 
 [2]: https://github.com/dcyr/survFire/scripts
-[3]: https://github.com/dcyr/survFire/pipeline.md
+[3]: https://github.com/dcyr/survFire/blob/master/pipeline.md
 [5]: http://dominiccyr.ca
 [6]: https://github.com/dcyr/survFire/blob/master/scripts/fcEstSurvFnc.R
 [7]: http://www.tandfonline.com/doi/abs/10.1080/01621459.1987.10478410

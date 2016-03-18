@@ -39,5 +39,5 @@ Don't hesitate to contact me should you have questions, comments or suggestions 
 
 
 [2]: https://github.com/dcyr/survFire/scripts
-[3]: https://github.com/dcyr/survFire/pipeline.md
+[3]: https://github.com/dcyr/survFire/blob/master/pipeline.md
 [5]: http://dominiccyr.ca
