@@ -25,6 +25,6 @@ Don't hesitate to contact me should you have questions, comments or suggestions 
 ![alt text](./figures/pipeline.png)
 
 
-[2]: https://github.com/dcyr/survFire/scripts
+[2]: https://github.com/dcyr/survFire/tree/master/scripts
 [3]: https://github.com/dcyr/survFire/blob/master/pipeline.md
 [5]: http://dominiccyr.ca
