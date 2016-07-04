@@ -1,14 +1,14 @@
 # Simulation and data processing pipeline
 [Dominic Cyr][5]
 
-Updated on Apr 01 2016
+Updated on Jul 04 2016
 
 
 -----------
 
 
 
-The following describes the simulation and data processing pipeline that allows to reproduce the experiment conducted by [Cyr _et al_. (working manuscript)][1]. That experiment aims at assessing the accuracy and precision of three types of fire estimation methods based on common survival models. The conditions within which those methods may be used in _real world_ applications are also simulated.
+The following describes the simulation and data processing pipeline that allows to reproduce the experiment conducted by [Cyr _et al_. (2016)][1]. That experiment aims at assessing the accuracy and precision of three types of fire estimation methods based on common survival models. The conditions within which those methods may be used in _real world_ applications are also simulated.
 
 For a specific description of the estimation methods, please refer to the [paper itself][1]. For more details about the implementation in R, _per se_, [click here][2].
 
@@ -24,7 +24,7 @@ Don't hesitate to contact me should you have questions, comments or suggestions 
 
 ![alt text](./figures/pipeline.png)
 
-
+[1]: http://www.mdpi.com/1999-4907/7/7/131/html
 [2]: https://github.com/dcyr/survFire/tree/master/scripts
 [3]: https://github.com/dcyr/survFire/blob/master/pipeline.md
 [5]: http://dominiccyr.ca
