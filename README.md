@@ -2,14 +2,14 @@
 
 [Dominic Cyr][5]
 
-Updated on Apr 01 2016
+Updated on Jul 04 2016
 
 
 -----------
 
 ### General description
 
-The present repository contains all that's necessary to reproduce the simulation experiment conducted by [Cyr _et al_. (working manuscript)][1].
+The present repository contains all that's necessary to reproduce the simulation experiment conducted by [Cyr _et al_. (2016)][1].
 
 That experiment aims at assessing the accuracy and precision of three types of fire estimation methods based on common survival models that are commonly used in engineering, medical science and actuarial science, among others field interested in modelling time-to-event data. Here we used them to model dendroecological reconstruction of fire history in forested boreal landscape.
 
@@ -38,7 +38,7 @@ Don't hesitate to contact me should you have questions, comments or suggestions 
 
 [Dominic Cyr][5]
 
-
+[1]: http://www.mdpi.com/1999-4907/7/7/131/html
 [2]: https://github.com/dcyr/survFire/tree/master/scripts
 [3]: https://github.com/dcyr/survFire/blob/master/pipeline.md
 [5]: http://dominiccyr.ca
